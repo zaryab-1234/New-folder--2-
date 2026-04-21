@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Oxbridge School Management</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f1117;color:#e8eaf0;min-height:100vh}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#1a1d27}::-webkit-scrollbar-thumb{background:#3a3f5c;border-radius:3px}
+.screen{display:none}.screen.active{display:flex}
+
+/* LOGIN */
+#screen-login{min-height:100vh;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(ellipse at 30% 50%,#1a1f3a 0%,#0f1117 60%)}
+.login-tabs{display:flex;width:400px}
+.login-tab{flex:1;padding:13px;text-align:center;font-size:14px;font-weight:600;cursor:pointer;border:1px solid #2a2f48;background:#0d0f1a;color:#5a5f7a;transition:all .2s}
+.login-tab:first-child{border-radius:12px 0 0 0}.login-tab:last-child{border-radius:0 12px 0 0}
+.login-tab.active{background:#16192a;color:#c8b97a;border-bottom-color:#16192a}
+.login-box{background:#16192a;border:1px solid #2a2f48;border-radius:0 0 20px 20px;padding:32px 36px 36px;width:400px;box-shadow:0 28px 70px rgba(0,0,0,.55)}
+.login-panel{display:none}.login-panel.active{display:block}
+.login-logo{font-family:Georgia,serif;font-size:22px;color:#c8b97a;text-align:center;margin-bottom:4px}
+.login-sub{text-align:center;color:#5a5f7a;font-size:11px;margin-bottom:22px;letter-spacing:2px;text-transform:uppercase}
+.form-label{display:block;font-size:11px;font-weight:600;color:#6a6f8a;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.form-input{width:100%;background:#0f1117;border:1px solid #2a2f48;border-radius:10px;padding:10px 14px;color:#e8eaf0;font-size:14px;outline:none;font-family:inherit;margin-bottom:14px;transition:border-color .2s}
+.form-input:focus{border-color:#c8b97a}
+textarea.form-input{resize:vertical;min-height:70px}
+.btn-login{width:100%;background:linear-gradient(135deg,#c8b97a,#a89060);border:none;border-radius:10px;padding:12px;color:#0f1117;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;margin-top:2px}
+.login-err{color:#ef4444;font-size:13px;text-align:center;margin-top:8px;min-height:18px}
+.student-hint{font-size:12px;color:#5a5f7a;text-align:center;margin-bottom:14px}
+.quick-wrap{margin-top:18px;padding-top:16px;border-top:1px solid #2a2f48}
+.quick-title{font-size:10px;color:#4a4f6a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center}
+.quick-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+
+/* APP */
+#screen-app{min-height:100vh}
+.app-layout{display:flex;min-height:100vh}
+.sidebar{width:245px;background:#0d0f1a;border-right:1px solid #1e2235;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-top{padding:22px 20px 16px;border-bottom:1px solid #1e2235}
+.sb-logo{font-family:Georgia,serif;font-size:19px;color:#c8b97a}
+.sb-tag{font-size:10px;color:#4a4f6a;margin-top:2px;letter-spacing:1px}
+.sb-user{padding:12px 20px;border-bottom:1px solid #1e2235;display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#c8b97a,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#0f1117;flex-shrink:0}
+.sb-name{font-size:13px;font-weight:600;color:#e8eaf0}
+.sb-role{font-size:11px;color:#5a5f7a;text-transform:capitalize}
+.nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;border:none;background:none;font-family:inherit;width:100%;text-align:left;color:#6a6f8a;transition:all .2s}
+.nav-item:hover{background:#1a1d2a;color:#e8eaf0}
+.nav-item.active{background:rgba(200,185,122,.1);color:#c8b97a;border:1px solid rgba(200,185,122,.22)}
+.nav-icon{font-size:15px;width:20px;text-align:center}
+.sb-footer{padding:12px 8px;border-top:1px solid #1e2235}
+.logout-btn{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:10px;cursor:pointer;color:#5a5f7a;font-size:13px;background:none;border:none;font-family:inherit;width:100%;transition:all .2s}
+.logout-btn:hover{color:#ef4444;background:rgba(239,68,68,.08)}
+.main-area{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.topbar{background:#0d0f1a;border-bottom:1px solid #1e2235;padding:13px 26px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.topbar-title{font-family:Georgia,serif;font-size:20px;color:#e8eaf0}
+.topbar-sub{font-size:12px;color:#5a5f7a;margin-top:2px}
+.role-badge{display:inline-block;background:rgba(200,185,122,.15);color:#c8b97a;border:1px solid rgba(200,185,122,.3);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+
+/* PAGES */
+.page{display:none;padding:22px 26px}.page.active{display:block}
+.cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px}
+.stat-card{background:#131622;border:1px solid #1e2235;border-radius:13px;padding:18px}
+.stat-icon{font-size:22px;margin-bottom:8px}.stat-num{font-family:Georgia,serif;font-size:28px;color:#c8b97a;line-height:1}.stat-label{font-size:11px;color:#5a5f7a;margin-top:3px}
+.sec-title{display:flex;align-items:center;gap:10px;margin-bottom:14px;margin-top:20px;font-family:Georgia,serif;font-size:16px;color:#c8b97a}
+.sec-title::after{content:'';flex:1;height:1px;background:#1e2235}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;border-radius:8px;font-weight:600;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.btn-primary{background:linear-gradient(135deg,#c8b97a,#a89060);color:#0f1117;padding:8px 16px;font-size:13px}
+.btn-ghost{background:#1e2235;color:#9a9fba;border:1px solid #2a2f48;padding:8px 16px;font-size:13px}
+.btn-danger{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);padding:8px 16px;font-size:13px}
+.btn-teal{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.25);padding:8px 16px;font-size:13px}
+.btn-purple{background:rgba(99,102,241,.12);color:#818cf8;border:1px solid rgba(99,102,241,.25);padding:8px 16px;font-size:13px}
+.btn-sm{padding:5px 10px!important;font-size:12px!important}
+.page-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* TABLE */
+.tbl-wrap{background:#131622;border:1px solid #1e2235;border-radius:13px;overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse}
+th{background:#0d0f1a;padding:10px 13px;text-align:left;font-size:11px;color:#5a5f7a;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:1px solid #1e2235}
+td{padding:11px 13px;font-size:13px;color:#b8bccc;border-bottom:1px solid #161928;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.015)}
+.bold{font-weight:600;color:#e8eaf0}.mono{font-family:monospace;color:#6a6f8a}
+
+/* GRADES */
+.grade{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600}
+.gAp{background:rgba(16,185,129,.18);color:#10b981}
+.gA{background:rgba(99,102,241,.18);color:#818cf8}
+.gB{background:rgba(245,158,11,.18);color:#f59e0b}
+.gC{background:rgba(200,185,122,.18);color:#c8b97a}
+.gD{background:rgba(239,68,68,.12);color:#f87171}
+.gF{background:rgba(239,68,68,.22);color:#ef4444}
+
+/* DIARY */
+.diary-card{background:#131622;border:1px solid #1e2235;border-radius:13px;padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
+.d-date-box{background:#0d0f1a;border-radius:9px;padding:7px 10px;text-align:center;flex-shrink:0;min-width:48px}
+.d-day{font-family:Georgia,serif;font-size:18px;color:#c8b97a;line-height:1}
+.d-mon{font-size:9px;color:#5a5f7a;text-transform:uppercase;letter-spacing:1px;margin-top:1px}
+.d-body{flex:1;min-width:0}
+.d-top{display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap}
+.d-subj{font-weight:700;font-size:14px;color:#e8eaf0}
+.cls-pill{font-size:10px;background:rgba(99,102,241,.15);color:#818cf8;border-radius:20px;padding:2px 8px}
+.d-hw{font-size:13px;color:#b8bccc;margin-bottom:4px}
+.d-notes{font-size:11px;color:#5a5f7a;font-style:italic}
+.d-by{font-size:10px;color:#4a4f6a;margin-top:6px}
+.d-acts{display:flex;gap:5px;flex-shrink:0}
+
+/* CLASS GROUP (principal diary view) */
+.cls-group{background:#131622;border:1px solid #1e2235;border-radius:14px;margin-bottom:14px;overflow:hidden}
+.cls-group-header{background:#0d0f1a;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid #1e2235}
+.cls-group-title{font-family:Georgia,serif;font-size:15px;color:#c8b97a;display:flex;align-items:center;gap:8px}
+.cls-group-count{font-size:11px;color:#5a5f7a;background:#131622;border:1px solid #1e2235;border-radius:20px;padding:2px 10px}
+.cls-group-body{padding:14px}
+.cls-group-body.collapsed{display:none}
+.cls-toggle{color:#5a5f7a;font-size:12px;transition:transform .2s}
+.cls-toggle.open{transform:rotate(180deg)}
+
+/* TESTS */
+.test-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.test-chip{padding:7px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid #2a2f48;background:#131622;color:#6a6f8a;transition:all .2s}
+.test-chip:hover{border-color:#c8b97a;color:#c8b97a}
+.test-chip.active{border-color:#c8b97a;background:rgba(200,185,122,.1);color:#c8b97a}
+.test-empty{background:#131622;border:2px dashed #2a2f48;border-radius:13px;padding:32px;text-align:center;color:#4a4f6a}
+.test-empty-icon{font-size:32px;margin-bottom:8px}
+.test-empty-text{font-size:13px}
+
+/* CALENDAR */
+.cal-nav{display:flex;align-items:center;gap:8px}
+.cal-lbl{font-family:Georgia,serif;font-size:18px;color:#c8b97a;min-width:190px;text-align:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:18px}
+.cal-hdr{text-align:center;font-size:10px;color:#5a5f7a;font-weight:600;padding:5px;text-transform:uppercase;letter-spacing:1px}
+.cal-cell{background:#131622;border:1px solid #1e2235;border-radius:8px;padding:7px;min-height:68px}
+.cal-cell.has-ev{border-color:#2a2f48}.cal-cell.today{border-color:#c8b97a;background:rgba(200,185,122,.05)}.cal-cell.empty{background:transparent;border-color:transparent}
+.cal-num{font-size:12px;color:#6a6f8a;font-weight:500;margin-bottom:4px}
+.cal-cell.today .cal-num{color:#c8b97a;font-weight:700}
+.cal-dot{height:4px;width:4px;border-radius:50%;margin-bottom:1px}
+.cal-evlbl{font-size:8px;line-height:1.2;font-weight:600}
+.ev-list{display:flex;flex-direction:column;gap:8px}
+.ev-item{background:#131622;border:1px solid #1e2235;border-radius:11px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start}
+.ev-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.ev-body{flex:1}
+.ev-title{font-weight:600;font-size:13px;color:#e8eaf0;margin-bottom:2px}
+.ev-date{font-size:11px;color:#5a5f7a}
+.ev-desc{font-size:11px;color:#7a7f9a;margin-top:3px}
+.ev-acts{display:flex;gap:5px;flex-shrink:0}
+
+/* TABS */
+.tabs{display:flex;gap:3px;background:#0d0f1a;border-radius:9px;padding:3px;width:fit-content}
+.tab-btn{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:#5a5f7a;font-family:inherit;transition:all .2s}
+.tab-btn.active{background:#1e2235;color:#c8b97a}
+
+/* CUSTOM DROPDOWN */
+.csel-wrap{position:relative;display:inline-block}
+.csel-btn{background:#131622;border:1px solid #1e2235;border-radius:8px;padding:7px 13px;color:#b8bccc;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.csel-btn.open,.csel-btn:focus{border-color:#c8b97a;outline:none}
+.csel-drop{display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:100%;background:#16192a;border:1px solid #2a2f48;border-radius:10px;z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.csel-drop.open{display:block}
+.csel-opt{padding:9px 14px;font-size:13px;color:#b8bccc;cursor:pointer;transition:background .15s;white-space:nowrap}
+.csel-opt:hover,.csel-opt.sel{background:rgba(200,185,122,.1);color:#c8b97a}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);align-items:center;justify-content:center;z-index:100}
+.modal-overlay.open{display:flex}
+.modal-box{background:#16192a;border:1px solid #2a2f48;border-radius:17px;padding:26px;width:480px;max-width:96vw;max-height:92vh;overflow-y:auto}
+.modal-box.wide{width:580px}
+.modal-title{font-family:Georgia,serif;font-size:19px;color:#c8b97a;margin-bottom:20px}
+.form-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{margin-bottom:14px}
+.g-preview{background:rgba(200,185,122,.08);border:1px solid rgba(200,185,122,.22);border-radius:9px;padding:9px 13px;font-size:13px;color:#c8b97a;margin-bottom:12px}
+.modal-acts{display:flex;gap:9px;justify-content:flex-end;margin-top:4px}
+
+/* CONFIRM */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);align-items:center;justify-content:center;z-index:200}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:#16192a;border:1px solid #2a2f48;border-radius:15px;padding:26px 30px;width:340px;text-align:center}
+.confirm-icon{font-size:34px;margin-bottom:10px}
+.confirm-msg{font-size:14px;color:#e8eaf0;margin-bottom:22px}
+.confirm-btns{display:flex;gap:10px;justify-content:center}
+
+/* CLASSES */
+.cls-chip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px}
+.cls-chip{background:#0d0f1a;border:1px solid #2a2f48;border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#b8bccc}
+.cls-chip-del{background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 2px}
+
+/* STUDENT PORTAL */
+.sp-header{background:#131622;border:1px solid #1e2235;border-radius:13px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:12px}
+.sp-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#c8b97a);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sp-name{font-size:15px;font-weight:600;color:#e8eaf0}
+.sp-info{font-size:12px;color:#5a5f7a;margin-top:2px}
+
+/* TODAY / OLD DIARY */
+.diary-date-nav{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.diary-date-nav label{font-size:12px;color:#5a5f7a}
+.today-indicator{display:inline-flex;align-items:center;gap:6px;background:rgba(200,185,122,.1);border:1px solid rgba(200,185,122,.25);border-radius:20px;padding:4px 12px;font-size:12px;color:#c8b97a;font-weight:600}
+
+/* IMPORT */
+.drop-zone{background:#0d0f1a;border:2px dashed #2a2f48;border-radius:12px;padding:28px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s}
+.drop-zone:hover{border-color:#c8b97a}
+.imp-info{background:#131622;border:1px solid #1e2235;border-radius:10px;padding:14px;font-size:12px;color:#6a6f8a;margin-bottom:4px}
+.imp-map-sel{width:100%;background:#0f1117;border:1px solid #2a2f48;border-radius:8px;padding:8px 12px;color:#e8eaf0;font-size:13px;outline:none;font-family:inherit;cursor:pointer;margin-top:5px}
+.imp-map-sel:focus{border-color:#c8b97a}
+.imp-count{background:rgba(200,185,122,.08);border:1px solid rgba(200,185,122,.2);border-radius:9px;padding:10px 14px;font-size:13px;color:#c8b97a;margin-bottom:14px}
+.imp-preview{overflow-x:auto;max-height:200px;overflow-y:auto}
+
+/* MISC */
+.status-badge{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.25)}
+.empty-state{text-align:center;padding:44px 20px;color:#4a4f6a}
+.empty-icon{font-size:36px;margin-bottom:8px}.empty-text{font-size:13px}
+.info-box{background:rgba(200,185,122,.06);border:1px solid rgba(200,185,122,.18);border-radius:10px;padding:12px 14px;font-size:12px;color:#9a8a5a;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="screen-login" class="screen active">
+  <div>
+    <div class="login-tabs">
+      <div class="login-tab active" id="ltab-staff" onclick="switchLoginTab('staff')">&#128100; Staff Login</div>
+      <div class="login-tab" id="ltab-student" onclick="switchLoginTab('student')">&#127891; Student Portal</div>
+    </div>
+    <div class="login-box">
+      <div class="login-logo">&#127979; Oxbridge SMS</div>
+      <div id="lpanel-staff" class="login-panel active">
+        <div class="login-sub">Principal &amp; Teacher Login</div>
+        <label class="form-label">Username</label>
+        <input id="login-u" class="form-input" placeholder="Enter username" onkeydown="if(event.key==='Enter')doLogin('staff')"/>
+        <label class="form-label">Password</label>
+        <input id="login-p" class="form-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin('staff')"/>
+        <button class="btn-login" onclick="doLogin('staff')">Sign In</button>
+        <div id="lerr-staff" class="login-err"></div>
+        <div class="quick-wrap">
+          <div class="quick-title">Quick Login (password: 1234)</div>
+          <div class="quick-btns" id="quick-btns"></div>
+        </div>
+      </div>
+      <div id="lpanel-student" class="login-panel">
+        <div class="login-sub">Student Portal</div>
+        <p class="student-hint">Enter your Roll Number — no password needed.</p>
+        <label class="form-label">Roll Number</label>
+        <input id="student-roll" class="form-input" placeholder="e.g. 801" onkeydown="if(event.key==='Enter')doLogin('student')"/>
+        <button class="btn-login" onclick="doLogin('student')">View My Portal</button>
+        <div id="lerr-student" class="login-err"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="screen-app" class="screen">
+  <div class="app-layout">
+    <div class="sidebar">
+      <div class="sb-top"><div class="sb-logo">Oxbridge</div><div class="sb-tag">School Management</div></div>
+      <div class="sb-user">
+        <div class="avatar" id="sb-av"></div>
+        <div><div class="sb-name" id="sb-name"></div><div class="sb-role" id="sb-role"></div></div>
+      </div>
+      <nav class="nav" id="sb-nav"></nav>
+      <div class="sb-footer"><button class="logout-btn" onclick="doLogout()">&#128682; Logout</button></div>
+    </div>
+    <div class="main-area">
+      <div class="topbar">
+        <div><div class="topbar-title" id="top-title">Dashboard</div><div class="topbar-sub" id="top-sub"></div></div>
+        <span class="role-badge" id="top-role"></span>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="cards-row" id="dash-cards"></div>
+        <div class="sec-title">Recent Diary</div>
+        <div id="dash-diary"></div>
+        <div class="sec-title" style="margin-top:18px">Upcoming Events</div>
+        <div id="dash-events"></div>
+      </div>
+
+      <!-- DIARY -->
+      <div class="page" id="page-diary">
+        <!-- Principal: class-wise grouped view -->
+        <div id="diary-principal-view" style="display:none">
+          <div class="page-top">
+            <div class="btn-row">
+              <div class="csel-wrap">
+                <button class="csel-btn" id="btn-dp-cls" onclick="toggleDrop('dp-cls')">All Classes &#9660;</button>
+                <div class="csel-drop" id="drop-dp-cls"></div>
+              </div>
+              <input type="date" class="csel-btn" id="dp-fdate" onchange="renderPrincipalDiary()" style="cursor:pointer"/>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dp-fdate').value='';renderPrincipalDiary()">Clear</button>
+            </div>
+            <button class="btn btn-primary" onclick="openDiaryModal(null)">+ Upload Diary</button>
+          </div>
+          <div id="diary-cls-groups"></div>
+        </div>
+
+        <!-- Teacher: own uploads -->
+        <div id="diary-teacher-view" style="display:none">
+          <div class="page-top">
+            <div class="btn-row">
+              <div class="csel-wrap">
+                <button class="csel-btn" id="btn-dt-cls" onclick="toggleDrop('dt-cls')">All &#9660;</button>
+                <div class="csel-drop" id="drop-dt-cls"></div>
+              </div>
+              <input type="date" class="csel-btn" id="dt-fdate" onchange="renderTeacherDiary()" style="cursor:pointer"/>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dt-fdate').value='';renderTeacherDiary()">Clear</button>
+            </div>
+            <button class="btn btn-primary" onclick="openDiaryModal(null)">+ Upload Diary</button>
+          </div>
+          <div id="diary-teacher-list"></div>
+        </div>
+
+        <!-- Student: today's diary + date picker for old -->
+        <div id="diary-student-view" style="display:none">
+          <div class="diary-date-nav">
+            <span class="today-indicator">&#128197; Today: <span id="student-today-label"></span></span>
+            <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+              <label style="font-size:12px;color:#5a5f7a">View older date:</label>
+              <input type="date" class="csel-btn" id="student-diary-date" onchange="renderStudentDiary()" style="cursor:pointer"/>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('student-diary-date').value='';renderStudentDiary()">Today</button>
+            </div>
+          </div>
+          <div id="diary-student-list"></div>
+        </div>
+      </div>
+
+      <!-- RESULTS / TESTS -->
+      <div class="page" id="page-results">
+        <!-- Teacher/Principal test management -->
+        <div id="results-staff-view" style="display:none">
+          <div class="page-top">
+            <div class="btn-row">
+              <div class="csel-wrap">
+                <button class="csel-btn" id="btn-res-cls" onclick="toggleDrop('res-cls')">All &#9660;</button>
+                <div class="csel-drop" id="drop-res-cls"></div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" onclick="exportExcel()" id="btn-export">&#11015; Export</button>
+              <button class="btn btn-teal" onclick="openImportModal()" id="btn-import">&#128194; Import Excel</button>
+              <button class="btn btn-primary" onclick="openResultModal(null)">+ Add Result</button>
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <div class="btn-row" style="align-items:center">
+              <span style="font-size:12px;color:#5a5f7a;margin-right:4px">Test:</span>
+              <div class="test-selector" id="staff-test-selector"></div>
+              <button class="btn btn-purple btn-sm" onclick="openTestModal()">+ New Test</button>
+            </div>
+          </div>
+          <div id="staff-results-wrap"></div>
+        </div>
+
+        <!-- Student: select a test -->
+        <div id="results-student-view" style="display:none">
+          <div id="student-res-header"></div>
+          <div style="margin-bottom:16px">
+            <div style="font-size:13px;color:#5a5f7a;margin-bottom:10px">Select a test to view your results:</div>
+            <div class="test-selector" id="student-test-selector"></div>
+          </div>
+          <div id="student-results-wrap"></div>
+        </div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="page" id="page-calendar">
+        <div class="page-top">
+          <div class="cal-nav">
+            <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">&#9664; Prev</button>
+            <div class="cal-lbl" id="cal-lbl"></div>
+            <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">Next &#9654;</button>
+          </div>
+          <button id="btn-add-ev" class="btn btn-primary" onclick="openCalModal(null)" style="display:none">+ Add Event</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="sec-title">All Events</div>
+        <div class="ev-list" id="ev-list"></div>
+      </div>
+
+      <!-- USERS -->
+      <div class="page" id="page-users">
+        <div class="page-top">
+          <div class="tabs">
+            <button class="tab-btn active" id="tab-teachers" onclick="switchUserTab('teachers')">&#128104;&#8205;&#127979; Teachers</button>
+            <button class="tab-btn" id="tab-students" onclick="switchUserTab('students')">&#127891; Students</button>
+          </div>
+          <div class="btn-row">
+            <button id="btn-import-students" class="btn btn-teal" onclick="openStudentImportModal()" style="display:none">&#128194; Import Students</button>
+            <button id="btn-add-user" class="btn btn-primary" onclick="openUserModal(null)">+ Add Teacher</button>
+          </div>
+        </div>
+        <div class="tbl-wrap"><table><thead id="users-thead"></thead><tbody id="users-tbody"></tbody></table></div>
+      </div>
+
+      <!-- CLASSES -->
+      <div class="page" id="page-classes">
+        <div class="sec-title">Manage Classes &amp; Sections</div>
+        <div class="cls-chip-grid" id="cls-grid"></div>
+        <div style="background:#131622;border:1px solid #1e2235;border-radius:13px;padding:18px">
+          <div style="font-size:13px;color:#c8b97a;font-weight:600;margin-bottom:12px">Add New Class / Section</div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="new-cls-inp" placeholder="e.g. Class 10-A or Class 6" style="margin-bottom:0;flex:1"/>
+            <button class="btn btn-primary" onclick="addClass()">+ Add</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Diary Modal -->
+<div class="modal-overlay" id="modal-diary">
+  <div class="modal-box">
+    <div class="modal-title" id="diary-modal-title">Upload Diary Entry</div>
+    <div class="form-row2">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="d-date"/></div>
+      <div class="form-group">
+        <label class="form-label">Class</label>
+        <div class="csel-wrap" style="display:block">
+          <button class="csel-btn" id="btn-d-cls" onclick="toggleDrop('d-cls')" style="width:100%;justify-content:space-between">Class 8 &#9660;</button>
+          <div class="csel-drop" id="drop-d-cls"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Subject</label><input class="form-input" id="d-subj" placeholder="e.g. Mathematics"/></div>
+    <div class="form-group"><label class="form-label">Homework / Task</label><textarea class="form-input" id="d-hw" placeholder="Describe the homework..."></textarea></div>
+    <div class="form-group"><label class="form-label">Notes (optional)</label><textarea class="form-input" id="d-notes" placeholder="Extra notes..." style="min-height:55px"></textarea></div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeModal('modal-diary')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDiary()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- Test Name Modal -->
+<div class="modal-overlay" id="modal-test">
+  <div class="modal-box">
+    <div class="modal-title">Create New Test</div>
+    <div class="form-group"><label class="form-label">Test Name</label><input class="form-input" id="test-name-inp" placeholder="e.g. Weekly Test 1, Monthly Test, Mid-Term"/></div>
+    <div class="form-group">
+      <label class="form-label">Class</label>
+      <div class="csel-wrap" style="display:block">
+        <button class="csel-btn" id="btn-test-cls" onclick="toggleDrop('test-cls')" style="width:100%;justify-content:space-between">Class 8 &#9660;</button>
+        <div class="csel-drop" id="drop-test-cls"></div>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="test-date"/></div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeModal('modal-test')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTest()">Create Test</button>
+    </div>
+  </div>
+</div>
+
+<!-- Result Modal -->
+<div class="modal-overlay" id="modal-result">
+  <div class="modal-box">
+    <div class="modal-title" id="result-modal-title">Add Result</div>
+    <div class="info-box" id="result-test-info"></div>
+    <div class="form-row2">
+      <div class="form-group"><label class="form-label">Student Name</label><input class="form-input" id="r-name" placeholder="Full name"/></div>
+      <div class="form-group"><label class="form-label">Roll No.</label><input class="form-input" id="r-roll" placeholder="e.g. 801"/></div>
+    </div>
+    <div class="form-row2">
+      <div class="form-group">
+        <label class="form-label">Class</label>
+        <div class="csel-wrap" style="display:block">
+          <button class="csel-btn" id="btn-r-cls" onclick="toggleDrop('r-cls')" style="width:100%;justify-content:space-between">Class 8 &#9660;</button>
+          <div class="csel-drop" id="drop-r-cls"></div>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Subject</label><input class="form-input" id="r-subj" placeholder="e.g. Mathematics"/></div>
+    </div>
+    <div class="form-row2">
+      <div class="form-group"><label class="form-label">Marks Obtained</label><input type="number" class="form-input" id="r-marks" value="0" min="0" oninput="updateGP()"/></div>
+      <div class="form-group"><label class="form-label">Total Marks</label><input type="number" class="form-input" id="r-total" value="100" min="1" oninput="updateGP()"/></div>
+    </div>
+    <div class="g-preview" id="g-preview">Auto Grade: A (0%)</div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeModal('modal-result')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveResult()">Save Result</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar Modal -->
+<div class="modal-overlay" id="modal-cal">
+  <div class="modal-box">
+    <div class="modal-title" id="cal-modal-title">Add Event</div>
+    <div class="form-row2">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="c-date"/></div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <div class="csel-wrap" style="display:block">
+          <button class="csel-btn" id="btn-c-type" onclick="toggleDrop('c-type')" style="width:100%;justify-content:space-between">Event &#9660;</button>
+          <div class="csel-drop" id="drop-c-type"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="c-title" placeholder="e.g. Mid-Term Exams Begin"/></div>
+    <div class="form-group"><label class="form-label">Description (optional)</label><textarea class="form-input" id="c-desc" placeholder="Additional details..."></textarea></div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeModal('modal-cal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCal()">Save Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Modal -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal-box wide">
+    <div class="modal-title" id="user-modal-title">Add Teacher</div>
+    <div class="form-row2">
+      <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" id="u-name" placeholder="e.g. Mr. Ali Hassan"/></div>
+      <div class="form-group"><label class="form-label">Username</label><input class="form-input" id="u-uname" placeholder="Login username"/></div>
+    </div>
+    <div class="form-row2">
+      <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="u-pass" value="1234"/></div>
+      <div class="form-group">
+        <label class="form-label">Class</label>
+        <div class="csel-wrap" style="display:block">
+          <button class="csel-btn" id="btn-u-cls" onclick="toggleDrop('u-cls')" style="width:100%;justify-content:space-between">Class 8 &#9660;</button>
+          <div class="csel-drop" id="drop-u-cls"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-group" id="u-roll-wrap">
+      <label class="form-label">Roll Number</label><input class="form-input" id="u-roll" placeholder="e.g. 802"/>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeModal('modal-user')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Results Modal -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal-box wide">
+    <div class="modal-title">&#128202; Import Results from Excel</div>
+    <div id="imp-s1">
+      <div class="drop-zone" onclick="document.getElementById('xl-inp').click()">
+        <div style="font-size:36px;margin-bottom:8px">&#128202;</div>
+        <div style="color:#c8b97a;font-weight:600;font-size:15px;margin-bottom:4px">Click to choose Excel file</div>
+        <div style="color:#5a5f7a;font-size:12px">Supports .xlsx and .xls files</div>
+        <input type="file" id="xl-inp" accept=".xlsx,.xls" style="display:none" onchange="handleXLFile(event)"/>
+      </div>
+      <div class="imp-info">
+        <div style="color:#c8b97a;font-weight:600;margin-bottom:8px">Expected columns (flexible names, any order):</div>
+        <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr style="background:#0d0f1a"><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Name</th><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Roll No</th><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Class</th><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Subject</th><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Marks</th><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Total</th></tr>
+          <tr><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">Ahmed Raza</td><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">801</td><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">Class 8</td><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">Maths</td><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">88</td><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">100</td></tr>
+        </table></div>
+        <div style="margin-top:8px">Grades are auto-calculated. Total defaults to 100 if missing.</div>
+      </div>
+    </div>
+    <div id="imp-s2" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="color:#10b981;font-size:13px;font-weight:600" id="xl-fname"></div>
+        <button class="btn btn-ghost btn-sm" onclick="resetImport()">&#8617; Change File</button>
+      </div>
+      <div style="color:#c8b97a;font-size:13px;font-weight:600;margin-bottom:10px">Map your columns:</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px" id="col-map-grid"></div>
+      <div style="background:#131622;border:1px solid #1e2235;border-radius:10px;overflow:hidden;margin-bottom:14px">
+        <div style="padding:9px 14px;background:#0d0f1a;font-size:11px;color:#5a5f7a;text-transform:uppercase;letter-spacing:1px;font-weight:600">Preview</div>
+        <div class="imp-preview" id="xl-preview"></div>
+      </div>
+      <div class="imp-count">Ready to import: <strong id="xl-count">0</strong> rows</div>
+      <div class="modal-acts">
+        <button class="btn btn-ghost" onclick="closeModal('modal-import')">Cancel</button>
+        <button class="btn btn-primary" onclick="doImport()">&#10003; Import Results</button>
+      </div>
+    </div>
+    <div id="imp-s3" style="display:none;text-align:center;padding:20px 0">
+      <div style="font-size:48px;margin-bottom:12px">&#9989;</div>
+      <div style="font-size:18px;font-weight:600;color:#10b981;margin-bottom:8px" id="imp-done-msg"></div>
+      <div style="font-size:13px;color:#5a5f7a;margin-bottom:20px" id="imp-done-sub"></div>
+      <button class="btn btn-primary" onclick="closeModal('modal-import');renderResultsPage()">View Results</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Students Modal -->
+<div class="modal-overlay" id="modal-import-students">
+  <div class="modal-box wide">
+    <div class="modal-title">&#127891; Import Students from Excel</div>
+    <div id="si-s1">
+      <div class="drop-zone" onclick="document.getElementById('si-inp').click()">
+        <div style="font-size:36px;margin-bottom:8px">&#127891;</div>
+        <div style="color:#c8b97a;font-weight:600;font-size:15px;margin-bottom:4px">Click to choose Excel file</div>
+        <div style="color:#5a5f7a;font-size:12px">Student list .xlsx or .xls</div>
+        <input type="file" id="si-inp" accept=".xlsx,.xls" style="display:none" onchange="handleStudentImport(event)"/>
+      </div>
+      <div class="imp-info">
+        <div style="color:#c8b97a;font-weight:600;margin-bottom:8px">Expected columns:</div>
+        <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr style="background:#0d0f1a"><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Name</th><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Roll No</th><th style="padding:5px 9px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Class</th></tr>
+          <tr><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">Ahmed Raza</td><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">801</td><td style="padding:5px 9px;border:1px solid #1e2235;color:#b8bccc">Class 8</td></tr>
+        </table></div>
+        <div style="margin-top:8px">Students can immediately login with their Roll Number after import.</div>
+      </div>
+    </div>
+    <div id="si-s2" style="display:none;text-align:center;padding:20px 0">
+      <div style="font-size:48px;margin-bottom:12px">&#9989;</div>
+      <div style="font-size:18px;font-weight:600;color:#10b981;margin-bottom:8px" id="si-done-msg"></div>
+      <div style="font-size:13px;color:#5a5f7a;margin-bottom:20px" id="si-done-sub"></div>
+      <button class="btn btn-primary" onclick="closeModal('modal-import-students');renderUsers()">View Students</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div class="confirm-overlay" id="confirm-ov">
+  <div class="confirm-box">
+    <div class="confirm-icon">&#9888;&#65039;</div>
+    <div class="confirm-msg" id="confirm-msg">Are you sure?</div>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmYes()">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ DATA ═══════════════
+var classes = ["Class 8", "Class 9", "Class 10"];
+
+var users = [
+  {id:1, name:"Principal", role:"principal", username:"principal", password:"1234"},
+  {id:2, name:"Mr. Bilal Ahmad", role:"teacher",   username:"bilal",     password:"1234", cls:"Class 8"},
+  {id:3, name:"Ms. Sana Mirza",  role:"teacher",   username:"sana",      password:"1234", cls:"Class 9"},
+  {id:4, name:"Ahmed Raza",      role:"student",   username:"ahmed",     password:"1234", cls:"Class 8", rollNo:"801"},
+  {id:5, name:"Fatima Noor",     role:"student",   username:"fatima",    password:"1234", cls:"Class 9", rollNo:"901"}
+];
+
+var diary = [
+  {id:1, date:"2026-04-20", cls:"Class 8", subject:"Mathematics", homework:"Complete Exercise 5.3 from textbook", notes:"We covered quadratic equations today.", teacherId:2, teacherName:"Mr. Bilal Ahmad"},
+  {id:2, date:"2026-04-20", cls:"Class 9", subject:"Physics", homework:"Read Chapter 7 on Waves", notes:"Lab session tomorrow, bring safety gear.", teacherId:3, teacherName:"Ms. Sana Mirza"},
+  {id:3, date:"2026-04-19", cls:"Class 8", subject:"Urdu", homework:"Write a paragraph on Spring Season", notes:"Dictation test on Monday.", teacherId:2, teacherName:"Mr. Bilal Ahmad"},
+  {id:4, date:"2026-04-20", cls:"Class 8", subject:"English", homework:"Read pages 45-50 and answer questions.", notes:"", teacherId:2, teacherName:"Mr. Bilal Ahmad"}
+];
+
+// Tests: each test has a name, class, date, and id
+var tests = [
+  {id:1, name:"Weekly Test 1", cls:"Class 8", date:"2026-04-15", teacherId:2},
+  {id:2, name:"Weekly Test 1", cls:"Class 9", date:"2026-04-15", teacherId:3},
+  {id:3, name:"Weekly Test 2", cls:"Class 8", date:"2026-04-20", teacherId:2}
+];
+
+// Results now linked to a testId
+var results = [
+  {id:1, testId:1, studentName:"Ahmed Raza",  rollNo:"801", cls:"Class 8", subject:"Mathematics", marks:88, total:100, grade:"A",  teacherId:2},
+  {id:2, testId:1, studentName:"Ahmed Raza",  rollNo:"801", cls:"Class 8", subject:"Urdu",        marks:76, total:100, grade:"B",  teacherId:2},
+  {id:3, testId:2, studentName:"Fatima Noor", rollNo:"901", cls:"Class 9", subject:"Physics",     marks:92, total:100, grade:"A+", teacherId:3},
+  {id:4, testId:3, studentName:"Ahmed Raza",  rollNo:"801", cls:"Class 8", subject:"Mathematics", marks:91, total:100, grade:"A+", teacherId:2}
+];
+
+var calEvents = [
+  {id:1, date:"2026-04-25", title:"Mid-Term Exams Begin",   type:"exam",    description:"All classes."},
+  {id:2, date:"2026-05-01", title:"Labour Day Holiday",     type:"holiday", description:"School closed."},
+  {id:3, date:"2026-05-10", title:"Parent-Teacher Meeting", type:"meeting", description:"3:00 PM main hall."},
+  {id:4, date:"2026-04-22", title:"Science Exhibition",     type:"event",   description:"Class 8 and 9."}
+];
+
+// ═══════════════ STATE ═══════════════
+var CU = null;
+var curPage = "dashboard";
+var userTab = "teachers";
+var calMonth = new Date();
+var confirmCb = null;
+var nextId = 500;
+function uid() { return ++nextId; }
+
+// currently selected test id per view
+var staffSelectedTestId = null;
+var studentSelectedTestId = null;
+
+// edit ids
+var editDiaryId = null, editResultId = null, editCalId = null, editUserId = null;
+
+var TYPE_COLOR = {exam:"#ef4444", holiday:"#10b981", meeting:"#f59e0b", event:"#6366f1"};
+var EVENT_TYPES = ["event","exam","holiday","meeting"];
+
+var dropVal = {
+  "dp-cls":"All", "dt-cls":"All", "res-cls":"All",
+  "d-cls":"Class 8", "r-cls":"Class 8", "u-cls":"Class 8",
+  "c-type":"event", "test-cls":"Class 8"
+};
+
+// collapsed state for class groups
+var groupCollapsed = {};
+
+// ═══════════════ HELPERS ═══════════════
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function fmtDate(d) {
+  return new Date(d+"T00:00:00").toLocaleDateString("en-PK",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+}
+function todayStr() { return new Date().toISOString().split("T")[0]; }
+function calcGrade(m,t) {
+  var p=(m/t)*100;
+  if(p>=90)return"A+"; if(p>=80)return"A"; if(p>=70)return"B"; if(p>=60)return"C"; if(p>=50)return"D"; return"F";
+}
+function gradeCls(g) {
+  return {"A+":"gAp","A":"gA","B":"gB","C":"gC","D":"gD","F":"gF"}[g]||"gA";
+}
+function emptyHTML(icon,text) {
+  return '<div class="empty-state"><div class="empty-icon">'+icon+'</div><div class="empty-text">'+text+'</div></div>';
+}
+function showToast(msg) {
+  var t=document.getElementById("toast-el");
+  if(!t){
+    t=document.createElement("div"); t.id="toast-el";
+    t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e2235;color:#e8eaf0;border:1px solid #2a2f48;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;transition:opacity .3s;pointer-events:none";
+    document.body.appendChild(t);
+  }
+  t.textContent=msg; t.style.opacity="1";
+  clearTimeout(t._to); t._to=setTimeout(function(){t.style.opacity="0";},2800);
+}
+
+// ═══════════════ CUSTOM DROPDOWNS ═══════════════
+function buildDrop(key, options, onChange) {
+  var drop=document.getElementById("drop-"+key);
+  var btn=document.getElementById("btn-"+key);
+  if(!drop||!btn)return;
+  drop.innerHTML="";
+  options.forEach(function(opt){
+    var val=(typeof opt==="object")?opt.value:opt;
+    var lbl=(typeof opt==="object")?opt.label:opt;
+    var div=document.createElement("div");
+    div.className="csel-opt"+(dropVal[key]===val?" sel":"");
+    div.textContent=lbl;
+    div.onclick=function(e){
+      e.stopPropagation();
+      dropVal[key]=val;
+      btn.textContent=lbl+" \u25BC";
+      drop.classList.remove("open"); btn.classList.remove("open");
+      if(onChange)onChange(val);
+    };
+    drop.appendChild(div);
+  });
+  var cur=options.find(function(o){return(typeof o==="object"?o.value:o)===dropVal[key];});
+  if(cur)btn.textContent=(typeof cur==="object"?cur.label:cur)+" \u25BC";
+}
+function toggleDrop(key){
+  var drop=document.getElementById("drop-"+key);
+  var btn=document.getElementById("btn-"+key);
+  if(!drop)return;
+  var was=drop.classList.contains("open");
+  closeAllDrops();
+  if(!was){drop.classList.add("open");if(btn)btn.classList.add("open");}
+}
+function closeAllDrops(){
+  document.querySelectorAll(".csel-drop").forEach(function(d){d.classList.remove("open");});
+  document.querySelectorAll(".csel-btn").forEach(function(b){b.classList.remove("open");});
+}
+document.addEventListener("click",function(e){if(!e.target.closest(".csel-wrap"))closeAllDrops();});
+
+function buildClassDrops() {
+  var allOpts=["All"].concat(classes);
+  buildDrop("dp-cls",allOpts,function(){renderPrincipalDiary();});
+  buildDrop("dt-cls",allOpts,function(){renderTeacherDiary();});
+  buildDrop("res-cls",allOpts,function(){renderResultsPage();});
+  buildDrop("d-cls",classes,null);
+  buildDrop("r-cls",classes,null);
+  buildDrop("u-cls",classes,null);
+  buildDrop("test-cls",classes,null);
+}
+function buildEventTypeDrop(){
+  buildDrop("c-type",EVENT_TYPES.map(function(t){return{value:t,label:t.charAt(0).toUpperCase()+t.slice(1)};}),null);
+}
+
+// ═══════════════ MODALS ═══════════════
+function openModal(id){document.getElementById(id).classList.add("open");}
+function closeModal(id){document.getElementById(id).classList.remove("open");closeAllDrops();}
+document.addEventListener("click",function(e){
+  if(e.target.classList.contains("modal-overlay")){e.target.classList.remove("open");closeAllDrops();}
+});
+
+// ═══════════════ CONFIRM ═══════════════
+function askConfirm(msg,cb){
+  document.getElementById("confirm-msg").textContent=msg;
+  confirmCb=cb;
+  document.getElementById("confirm-ov").classList.add("open");
+}
+function confirmYes(){
+  document.getElementById("confirm-ov").classList.remove("open");
+  if(confirmCb){confirmCb();confirmCb=null;}
+}
+function closeConfirm(){document.getElementById("confirm-ov").classList.remove("open");confirmCb=null;}
+
+// ═══════════════ LOGIN ═══════════════
+function switchLoginTab(tab){
+  document.getElementById("ltab-staff").classList.toggle("active",tab==="staff");
+  document.getElementById("ltab-student").classList.toggle("active",tab==="student");
+  document.getElementById("lpanel-staff").classList.toggle("active",tab==="staff");
+  document.getElementById("lpanel-student").classList.toggle("active",tab==="student");
+}
+function doLogin(type){
+  if(type==="student"){
+    var roll=document.getElementById("student-roll").value.trim();
+    var found=null;
+    for(var i=0;i<users.length;i++){if(users[i].role==="student"&&users[i].rollNo===roll){found=users[i];break;}}
+    if(!found){document.getElementById("lerr-student").textContent="No student found with Roll No: "+roll;return;}
+    CU=found; document.getElementById("lerr-student").textContent="";
+  } else {
+    var u=document.getElementById("login-u").value.trim();
+    var p=document.getElementById("login-p").value;
+    var found2=null;
+    for(var j=0;j<users.length;j++){if(users[j].username===u&&users[j].password===p&&users[j].role!=="student"){found2=users[j];break;}}
+    if(!found2){document.getElementById("lerr-staff").textContent="Invalid username or password.";return;}
+    CU=found2; document.getElementById("lerr-staff").textContent="";
+  }
+  document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
+  document.getElementById("screen-app").classList.add("active");
+  buildSidebar(); goPage("dashboard");
+}
+function doLogout(){
+  CU=null;
+  document.getElementById("login-u").value="";
+  document.getElementById("login-p").value="";
+  document.getElementById("student-roll").value="";
+  buildQuickBtns();
+  document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});
+  document.getElementById("screen-login").classList.add("active");
+}
+function buildQuickBtns(){
+  var wrap=document.getElementById("quick-btns"); wrap.innerHTML="";
+  users.filter(function(u){return u.role!=="student";}).forEach(function(u){
+    var b=document.createElement("button"); b.className="btn btn-ghost btn-sm";
+    b.innerHTML=(u.role==="principal"?"&#128081;":"&#128104;&#8205;&#127979;")+" "+esc(u.username);
+    b.onclick=function(){document.getElementById("login-u").value=u.username;document.getElementById("login-p").value="1234";};
+    wrap.appendChild(b);
+  });
+}
+
+// ═══════════════ SIDEBAR / NAV ═══════════════
+var PAGE_META={
+  dashboard:{title:"Dashboard",sub:"Welcome back"},
+  diary:{title:"Daily Diary",sub:"Class notes and homework"},
+  results:{title:"Tests & Results",sub:"Manage tests and student performance"},
+  calendar:{title:"Calendar",sub:"Events and schedule"},
+  users:{title:"Manage Users",sub:"Staff and students"},
+  classes:{title:"Classes & Sections",sub:"Manage class list"}
+};
+
+function buildSidebar(){
+  var u=CU;
+  var ini=u.name.split(" ").map(function(w){return w[0];}).slice(0,2).join("");
+  document.getElementById("sb-av").textContent=ini;
+  document.getElementById("sb-name").textContent=u.name;
+  document.getElementById("sb-role").textContent=u.role;
+  document.getElementById("top-role").textContent={principal:"&#128081; Principal",teacher:"&#128104;&#8205;&#127979; Teacher",student:"&#127891; Student"}[u.role];
+
+  var items=[
+    {id:"dashboard",label:"Dashboard",icon:"&#128202;"},
+    {id:"diary",label:"Daily Diary",icon:"&#128211;"},
+    {id:"results",label:"Tests & Results",icon:"&#128200;"},
+    {id:"calendar",label:"Calendar",icon:"&#128197;"}
+  ];
+  if(u.role==="principal"){
+    items.push({id:"users",label:"Manage Users",icon:"&#128101;"});
+    items.push({id:"classes",label:"Classes & Sections",icon:"&#127979;"});
+  }
+  var nav=document.getElementById("sb-nav"); nav.innerHTML="";
+  items.forEach(function(it){
+    var b=document.createElement("button"); b.className="nav-item"; b.id="nav-"+it.id;
+    b.innerHTML='<span class="nav-icon">'+it.icon+"</span>"+it.label;
+    b.onclick=function(){goPage(it.id);}; nav.appendChild(b);
+  });
+}
+
+function goPage(id){
+  curPage=id;
+  document.querySelectorAll(".nav-item").forEach(function(b){b.classList.remove("active");});
+  var nb=document.getElementById("nav-"+id); if(nb)nb.classList.add("active");
+  document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active");});
+  document.getElementById("page-"+id).classList.add("active");
+  var m=PAGE_META[id]||PAGE_META.dashboard;
+  document.getElementById("top-title").textContent=m.title;
+  document.getElementById("top-sub").textContent=m.sub;
+  closeAllDrops();
+  if(id==="dashboard")renderDashboard();
+  if(id==="diary")setupDiaryPage();
+  if(id==="results")setupResultsPage();
+  if(id==="calendar"){setupCalPage();renderCalendar();}
+  if(id==="users"){userTab="teachers";switchUserTab("teachers");}
+  if(id==="classes")renderClasses();
+}
+
+// ═══════════════ DASHBOARD ═══════════════
+function renderDashboard(){
+  var u=CU, today=todayStr();
+  var myDiary=(u.role==="student")?diary.filter(function(d){return d.cls===u.cls;}):diary;
+  var cards="";
+  if(u.role==="principal"){
+    cards+='<div class="stat-card"><div class="stat-icon">&#128104;&#8205;&#127979;</div><div class="stat-num">'+users.filter(function(x){return x.role==="teacher";}).length+'</div><div class="stat-label">Teachers</div></div>';
+    cards+='<div class="stat-card"><div class="stat-icon">&#127891;</div><div class="stat-num">'+users.filter(function(x){return x.role==="student";}).length+'</div><div class="stat-label">Students</div></div>';
+    cards+='<div class="stat-card"><div class="stat-icon">&#128203;</div><div class="stat-num">'+tests.length+'</div><div class="stat-label">Tests Created</div></div>';
+  }
+  cards+='<div class="stat-card"><div class="stat-icon">&#128211;</div><div class="stat-num">'+myDiary.length+'</div><div class="stat-label">Diary Entries</div></div>';
+  var rc=(u.role==="student")?results.filter(function(r){return r.rollNo===u.rollNo;}).length:results.length;
+  cards+='<div class="stat-card"><div class="stat-icon">&#128200;</div><div class="stat-num">'+rc+'</div><div class="stat-label">Results</div></div>';
+  cards+='<div class="stat-card"><div class="stat-icon">&#128197;</div><div class="stat-num">'+calEvents.filter(function(e){return e.date>=today;}).length+'</div><div class="stat-label">Upcoming Events</div></div>';
+  document.getElementById("dash-cards").innerHTML=cards;
+
+  var recent=myDiary.filter(function(d){return d.date===today;}).slice(0,3);
+  if(!recent.length)recent=myDiary.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,3);
+  document.getElementById("dash-diary").innerHTML=recent.length?recent.map(function(d){return diaryCardHTML(d,false);}).join(""):emptyHTML("&#128211;","No diary entries yet.");
+
+  var upcoming=calEvents.filter(function(e){return e.date>=today;}).sort(function(a,b){return a.date.localeCompare(b.date);}).slice(0,3);
+  document.getElementById("dash-events").innerHTML=upcoming.length?upcoming.map(function(e){
+    return '<div class="ev-item" style="margin-bottom:7px"><div class="ev-dot" style="background:'+(TYPE_COLOR[e.type]||"#6366f1")+'"></div><div class="ev-body"><div class="ev-title">'+esc(e.title)+'</div><div class="ev-date">'+fmtDate(e.date)+'</div></div></div>';
+  }).join(""):emptyHTML("&#128197;","No upcoming events.");
+}
+
+// ═══════════════ DIARY ═══════════════
+function setupDiaryPage(){
+  var u=CU;
+  document.getElementById("diary-principal-view").style.display=(u.role==="principal")?"":"none";
+  document.getElementById("diary-teacher-view").style.display=(u.role==="teacher")?"":"none";
+  document.getElementById("diary-student-view").style.display=(u.role==="student")?"":"none";
+  buildClassDrops();
+  if(u.role==="principal") renderPrincipalDiary();
+  if(u.role==="teacher")   renderTeacherDiary();
+  if(u.role==="student")   renderStudentDiary();
+}
+
+// Principal: class-wise grouped view
+function renderPrincipalDiary(){
+  var fcls=dropVal["dp-cls"]||"All";
+  var fdate=document.getElementById("dp-fdate").value;
+  var list=diary.slice();
+  if(fcls!=="All")list=list.filter(function(d){return d.cls===fcls;});
+  if(fdate)list=list.filter(function(d){return d.date===fdate;});
+  list.sort(function(a,b){return b.date.localeCompare(a.date);});
+
+  // group by class
+  var grouped={};
+  list.forEach(function(d){
+    if(!grouped[d.cls])grouped[d.cls]=[];
+    grouped[d.cls].push(d);
+  });
+
+  var clsList=(fcls==="All")?classes:([fcls]);
+  var html="";
+  clsList.forEach(function(cls){
+    var items=grouped[cls]||[];
+    if(!items.length&&fcls!=="All")return;
+    var ckey="grp-"+cls;
+    if(groupCollapsed[ckey]===undefined)groupCollapsed[ckey]=false;
+    var isOpen=!groupCollapsed[ckey];
+    html+='<div class="cls-group">';
+    html+='<div class="cls-group-header" onclick="toggleGroup(\''+ckey+'\')">';
+    html+='<div class="cls-group-title">&#127979; '+esc(cls)+' <span class="cls-group-count">'+items.length+' entries</span></div>';
+    html+='<span class="cls-toggle'+(isOpen?" open":"")+'">&#9660;</span>';
+    html+='</div>';
+    html+='<div class="cls-group-body'+(isOpen?"":" collapsed")+'">';
+    if(items.length){
+      items.forEach(function(d){html+=diaryCardHTML(d,true);});
+    } else {
+      html+=emptyHTML("&#128211;","No diary entries for this class.");
+    }
+    html+='</div></div>';
+  });
+  document.getElementById("diary-cls-groups").innerHTML=html||emptyHTML("&#128211;","No diary entries found.");
+}
+
+function toggleGroup(key){
+  groupCollapsed[key]=!groupCollapsed[key];
+  renderPrincipalDiary();
+}
+
+// Teacher: own entries
+function renderTeacherDiary(){
+  var fcls=dropVal["dt-cls"]||"All";
+  var fdate=document.getElementById("dt-fdate").value;
+  var list=diary.filter(function(d){return d.teacherId===CU.id;});
+  if(fcls!=="All")list=list.filter(function(d){return d.cls===fcls;});
+  if(fdate)list=list.filter(function(d){return d.date===fdate;});
+  list.sort(function(a,b){return b.date.localeCompare(a.date);});
+  document.getElementById("diary-teacher-list").innerHTML=list.length?list.map(function(d){return diaryCardHTML(d,true);}).join(""):emptyHTML("&#128211;","No diary entries found. Upload one to get started.");
+}
+
+// Student: today's diary by default, old by date picker
+function renderStudentDiary(){
+  var today=todayStr();
+  var label=new Date(today+"T00:00:00").toLocaleDateString("en-PK",{weekday:"long",day:"numeric",month:"long"});
+  document.getElementById("student-today-label").textContent=label;
+
+  var selectedDate=document.getElementById("student-diary-date").value||today;
+  var list=diary.filter(function(d){return d.cls===CU.cls&&d.date===selectedDate;});
+  list.sort(function(a,b){return a.subject.localeCompare(b.subject);});
+
+  var wrap=document.getElementById("diary-student-list");
+  if(!list.length){
+    var msg=(selectedDate===today)?"No diary entries for today yet. Check back later.":"No diary entries for the selected date.";
+    wrap.innerHTML=emptyHTML("&#128211;",msg);
+  } else {
+    wrap.innerHTML=list.map(function(d){return diaryCardHTML(d,false);}).join("");
+  }
+}
+
+function diaryCardHTML(d,showAct){
+  var dt=new Date(d.date+"T00:00:00");
+  var day=dt.getDate(), mon=dt.toLocaleString("en",{month:"short"});
+  var acts=showAct?'<div class="d-acts"><button class="btn btn-ghost btn-sm" onclick="openDiaryModal('+d.id+')">&#9999;</button><button class="btn btn-danger btn-sm" onclick="askConfirm(\'Delete this diary entry?\',function(){delDiary('+d.id+')})">&#128465;</button></div>':"";
+  return '<div class="diary-card"><div class="d-date-box"><div class="d-day">'+day+'</div><div class="d-mon">'+mon+'</div></div><div class="d-body"><div class="d-top"><span class="d-subj">'+esc(d.subject)+'</span><span class="cls-pill">'+esc(d.cls)+'</span></div><div class="d-hw">&#128221; <strong>HW:</strong> '+esc(d.homework)+'</div>'+(d.notes?'<div class="d-notes">&#128161; '+esc(d.notes)+'</div>':'')+'<div class="d-by">By '+esc(d.teacherName)+' &mdash; '+d.date+'</div></div>'+acts+'</div>';
+}
+
+function openDiaryModal(id){
+  editDiaryId=id;
+  document.getElementById("diary-modal-title").textContent=id?"Edit Diary Entry":"Upload Diary Entry";
+  buildClassDrops();
+  if(id){
+    var d=diary.find(function(x){return x.id===id;});
+    document.getElementById("d-date").value=d.date;
+    document.getElementById("d-subj").value=d.subject;
+    document.getElementById("d-hw").value=d.homework;
+    document.getElementById("d-notes").value=d.notes||"";
+    dropVal["d-cls"]=d.cls; buildDrop("d-cls",classes,null);
+  } else {
+    document.getElementById("d-date").value=todayStr();
+    document.getElementById("d-subj").value="";
+    document.getElementById("d-hw").value="";
+    document.getElementById("d-notes").value="";
+    dropVal["d-cls"]=CU.cls||classes[0]; buildDrop("d-cls",classes,null);
+  }
+  openModal("modal-diary");
+}
+function saveDiary(){
+  var date=document.getElementById("d-date").value;
+  var cls=dropVal["d-cls"]||classes[0];
+  var subj=document.getElementById("d-subj").value.trim();
+  var hw=document.getElementById("d-hw").value.trim();
+  var note=document.getElementById("d-notes").value.trim();
+  if(!date||!subj||!hw){showToast("Please fill Date, Subject and Homework.");return;}
+  if(editDiaryId){
+    for(var i=0;i<diary.length;i++){if(diary[i].id===editDiaryId){diary[i]=Object.assign({},diary[i],{date:date,cls:cls,subject:subj,homework:hw,notes:note});break;}}
+  } else {
+    diary.push({id:uid(),date:date,cls:cls,subject:subj,homework:hw,notes:note,teacherId:CU.id,teacherName:CU.name});
+  }
+  closeModal("modal-diary"); setupDiaryPage();
+  if(curPage==="dashboard")renderDashboard();
+}
+function delDiary(id){
+  diary=diary.filter(function(x){return x.id!==id;});
+  setupDiaryPage(); if(curPage==="dashboard")renderDashboard();
+}
+
+// ═══════════════ TESTS & RESULTS ═══════════════
+function setupResultsPage(){
+  var u=CU;
+  document.getElementById("results-staff-view").style.display=(u.role!=="student")?"":"none";
+  document.getElementById("results-student-view").style.display=(u.role==="student")?"":"none";
+  buildClassDrops();
+  if(u.role==="student"){
+    setupStudentResultsView();
+  } else {
+    if(!staffSelectedTestId&&tests.length)staffSelectedTestId=tests[0].id;
+    renderStaffTestSelector();
+    renderResultsPage();
+  }
+}
+
+function renderStaffTestSelector(){
+  var u=CU;
+  var myTests=(u.role==="principal")?tests:tests.filter(function(t){return t.teacherId===u.id;});
+  var fcls=dropVal["res-cls"]||"All";
+  var filtered=(fcls==="All")?myTests:myTests.filter(function(t){return t.cls===fcls;});
+
+  var html="";
+  if(!filtered.length){
+    html='<div style="font-size:12px;color:#4a4f6a;padding:6px">No tests for this class yet.</div>';
+  } else {
+    filtered.forEach(function(t){
+      var active=(staffSelectedTestId===t.id);
+      html+='<div class="test-chip'+(active?" active":"")+'" onclick="selectStaffTest('+t.id+')">';
+      html+=esc(t.name)+'<span style="font-size:10px;color:'+(active?"#c8b97a":"#4a4f6a");
+      html+='"> &mdash; '+esc(t.cls)+'</span></div>';
+    });
+  }
+  document.getElementById("staff-test-selector").innerHTML=html;
+}
+
+function selectStaffTest(id){
+  staffSelectedTestId=id;
+  renderStaffTestSelector();
+  renderResultsPage();
+}
+
+function renderResultsPage(){
+  var u=CU;
+  if(u.role==="student")return;
+  var fcls=dropVal["res-cls"]||"All";
+  renderStaffTestSelector();
+
+  var wrap=document.getElementById("staff-results-wrap");
+  if(!staffSelectedTestId){
+    wrap.innerHTML='<div class="test-empty"><div class="test-empty-icon">&#128203;</div><div class="test-empty-text">Create a test first using the <strong>+ New Test</strong> button, then add results.</div></div>';
+    return;
+  }
+
+  var t=tests.find(function(x){return x.id===staffSelectedTestId;});
+  if(!t){wrap.innerHTML=emptyHTML("&#128203;","Test not found.");return;}
+
+  var list=results.filter(function(r){return r.testId===staffSelectedTestId;});
+  if(fcls!=="All")list=list.filter(function(r){return r.cls===fcls;});
+
+  var canDel=function(r){return u.role==="principal"||r.teacherId===u.id;};
+  var canEd =function(r){return u.role==="principal"||r.teacherId===u.id;};
+
+  var info='<div style="background:#131622;border:1px solid #1e2235;border-radius:11px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+  info+='<div><div style="font-size:15px;font-weight:700;color:#e8eaf0">&#128203; '+esc(t.name)+'</div><div style="font-size:12px;color:#5a5f7a;margin-top:3px">'+esc(t.cls)+' &nbsp;|&nbsp; '+t.date+'</div></div>';
+  info+='<div class="btn-row"><button class="btn btn-danger btn-sm" onclick="askConfirm(\'Delete test and all its results?\',function(){delTest('+t.id+')})">&#128465; Delete Test</button></div>';
+  info+='</div>';
+  wrap.innerHTML=info;
+
+  if(!list.length){
+    wrap.innerHTML+=emptyHTML("&#128203;","No results for this test yet. Click + Add Result.");
+    return;
+  }
+
+  var tableHTML='<div class="tbl-wrap"><table><thead><tr><th>Student</th><th>Roll No</th><th>Class</th><th>Subject</th><th>Marks</th><th>Grade</th><th>Actions</th></tr></thead><tbody>';
+  list.forEach(function(r){
+    tableHTML+='<tr><td class="bold">'+esc(r.studentName)+'</td><td>'+esc(r.rollNo)+'</td><td>'+esc(r.cls)+'</td><td>'+esc(r.subject)+'</td>';
+    tableHTML+='<td><strong style="color:#c8b97a">'+r.marks+'</strong><span style="color:#5a5f7a">/'+r.total+'</span></td>';
+    tableHTML+='<td><span class="grade '+gradeCls(r.grade)+'">'+esc(r.grade)+'</span></td>';
+    tableHTML+='<td><div style="display:flex;gap:5px">';
+    if(canEd(r)) tableHTML+='<button class="btn btn-ghost btn-sm" onclick="openResultModal('+r.id+')">&#9999;</button>';
+    if(canDel(r))tableHTML+='<button class="btn btn-danger btn-sm" onclick="askConfirm(\'Delete this result?\',function(){delResult('+r.id+')})">&#128465;</button>';
+    tableHTML+='</div></td></tr>';
+  });
+  tableHTML+='</tbody></table></div>';
+  wrap.innerHTML+=tableHTML;
+}
+
+// Student results view
+function setupStudentResultsView(){
+  var u=CU;
+  document.getElementById("student-res-header").innerHTML='<div class="sp-header"><div class="sp-av">&#127891;</div><div><div class="sp-name">'+esc(u.name)+'</div><div class="sp-info">Roll No: '+esc(u.rollNo)+' &nbsp;|&nbsp; '+esc(u.cls)+'</div></div></div>';
+
+  // Get tests that have results for this student
+  var myRollResults=results.filter(function(r){return r.rollNo===u.rollNo;});
+  var myTestIds={};
+  myRollResults.forEach(function(r){myTestIds[r.testId]=true;});
+  var myTests=tests.filter(function(t){return myTestIds[t.id];});
+
+  if(!myTests.length){
+    document.getElementById("student-test-selector").innerHTML='<div style="font-size:13px;color:#4a4f6a">No test results available yet.</div>';
+    document.getElementById("student-results-wrap").innerHTML="";
+    return;
+  }
+
+  // auto-select first if none
+  if(!studentSelectedTestId||!myTestIds[studentSelectedTestId])studentSelectedTestId=myTests[0].id;
+
+  var html="";
+  myTests.forEach(function(t){
+    var active=(studentSelectedTestId===t.id);
+    html+='<div class="test-chip'+(active?" active":"")+'" onclick="selectStudentTest('+t.id+')">';
+    html+=esc(t.name)+'<br><span style="font-size:10px;color:'+(active?"#c8b97a":"#4a4f6a")+'">'+t.date+'</span></div>';
+  });
+  document.getElementById("student-test-selector").innerHTML=html;
+  renderStudentResults();
+}
+
+function selectStudentTest(id){
+  studentSelectedTestId=id;
+  setupStudentResultsView();
+}
+
+function renderStudentResults(){
+  var u=CU;
+  var list=results.filter(function(r){return r.testId===studentSelectedTestId&&r.rollNo===u.rollNo;});
+  var wrap=document.getElementById("student-results-wrap");
+  if(!list.length){wrap.innerHTML=emptyHTML("&#128200;","No results for this test.");return;}
+
+  var avg=Math.round(list.reduce(function(s,r){return s+(r.marks/r.total)*100;},0)/list.length);
+  var summary='<div style="background:rgba(200,185,122,.06);border:1px solid rgba(200,185,122,.18);border-radius:11px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:16px">';
+  summary+='<div style="text-align:center"><div style="font-family:Georgia,serif;font-size:28px;color:#c8b97a">'+avg+'%</div><div style="font-size:11px;color:#5a5f7a">Average</div></div>';
+  summary+='<div style="font-size:13px;color:#b8bccc">'+list.length+' subject'+(list.length===1?"":"s")+' &nbsp;&bull;&nbsp; '+list.filter(function(r){return r.grade==="A+"||r.grade==="A";}).length+' distinctions</div>';
+  summary+='</div>';
+
+  var tableHTML='<div class="tbl-wrap"><table><thead><tr><th>Subject</th><th>Marks</th><th>Grade</th></tr></thead><tbody>';
+  list.forEach(function(r){
+    tableHTML+='<tr><td class="bold">'+esc(r.subject)+'</td><td><strong style="color:#c8b97a">'+r.marks+'</strong><span style="color:#5a5f7a">/'+r.total+'</span></td><td><span class="grade '+gradeCls(r.grade)+'">'+esc(r.grade)+'</span></td></tr>';
+  });
+  tableHTML+='</tbody></table></div>';
+  wrap.innerHTML=summary+tableHTML;
+}
+
+// Test modal
+function openTestModal(){
+  buildClassDrops();
+  document.getElementById("test-name-inp").value="";
+  document.getElementById("test-date").value=todayStr();
+  dropVal["test-cls"]=CU.cls||classes[0];
+  buildDrop("test-cls",classes,null);
+  openModal("modal-test");
+}
+function saveTest(){
+  var name=document.getElementById("test-name-inp").value.trim();
+  var cls=dropVal["test-cls"]||classes[0];
+  var date=document.getElementById("test-date").value;
+  if(!name){showToast("Please enter a test name.");return;}
+  var newTest={id:uid(),name:name,cls:cls,date:date,teacherId:CU.id};
+  tests.push(newTest);
+  staffSelectedTestId=newTest.id;
+  closeModal("modal-test");
+  renderStaffTestSelector();
+  renderResultsPage();
+}
+function delTest(id){
+  tests=tests.filter(function(x){return x.id!==id;});
+  results=results.filter(function(x){return x.testId!==id;});
+  staffSelectedTestId=tests.length?tests[0].id:null;
+  renderStaffTestSelector();
+  renderResultsPage();
+}
+
+// Result modal
+function openResultModal(id){
+  editResultId=id;
+  document.getElementById("result-modal-title").textContent=id?"Edit Result":"Add Result";
+  buildClassDrops();
+  var t=tests.find(function(x){return x.id===staffSelectedTestId;});
+  document.getElementById("result-test-info").textContent=t?"Test: "+t.name+" ("+t.cls+")":"No test selected";
+  if(id){
+    var r=results.find(function(x){return x.id===id;});
+    document.getElementById("r-name").value=r.studentName;
+    document.getElementById("r-roll").value=r.rollNo;
+    document.getElementById("r-subj").value=r.subject;
+    document.getElementById("r-marks").value=r.marks;
+    document.getElementById("r-total").value=r.total;
+    dropVal["r-cls"]=r.cls; buildDrop("r-cls",classes,null);
+  } else {
+    document.getElementById("r-name").value="";
+    document.getElementById("r-roll").value="";
+    document.getElementById("r-subj").value="";
+    document.getElementById("r-marks").value=0;
+    document.getElementById("r-total").value=100;
+    dropVal["r-cls"]=(t?t.cls:null)||CU.cls||classes[0]; buildDrop("r-cls",classes,null);
+  }
+  updateGP(); openModal("modal-result");
+}
+function updateGP(){
+  var m=parseFloat(document.getElementById("r-marks").value)||0;
+  var t=parseFloat(document.getElementById("r-total").value)||100;
+  document.getElementById("g-preview").textContent="Auto Grade: "+calcGrade(m,t)+" ("+Math.round((m/t)*100)+"%)";
+}
+function saveResult(){
+  if(!staffSelectedTestId){showToast("Please select or create a test first.");return;}
+  var name=document.getElementById("r-name").value.trim();
+  var roll=document.getElementById("r-roll").value.trim();
+  var cls=dropVal["r-cls"]||classes[0];
+  var subj=document.getElementById("r-subj").value.trim();
+  var m=parseFloat(document.getElementById("r-marks").value)||0;
+  var t=parseFloat(document.getElementById("r-total").value)||100;
+  if(!name||!subj){showToast("Please fill Student Name and Subject.");return;}
+  var g=calcGrade(m,t);
+  if(editResultId){
+    for(var i=0;i<results.length;i++){if(results[i].id===editResultId){results[i]=Object.assign({},results[i],{studentName:name,rollNo:roll,cls:cls,subject:subj,marks:m,total:t,grade:g});break;}}
+  } else {
+    results.push({id:uid(),testId:staffSelectedTestId,studentName:name,rollNo:roll,cls:cls,subject:subj,marks:m,total:t,grade:g,teacherId:CU.id});
+  }
+  closeModal("modal-result"); renderResultsPage();
+}
+function delResult(id){
+  results=results.filter(function(x){return x.id!==id;});
+  renderResultsPage();
+}
+
+// ═══════════════ EXPORT EXCEL ═══════════════
+function exportExcel(){
+  var list=staffSelectedTestId?results.filter(function(r){return r.testId===staffSelectedTestId;}):results;
+  if(!list.length){showToast("No results to export.");return;}
+  var t=staffSelectedTestId?tests.find(function(x){return x.id===staffSelectedTestId;}):null;
+  var rows=[["Student Name","Roll No","Class","Subject","Marks","Total","Grade","Percentage"]];
+  list.forEach(function(r){
+    rows.push([r.studentName,r.rollNo,r.cls,r.subject,r.marks,r.total,r.grade,Math.round((r.marks/r.total)*100)+"%"]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"]=[{wch:20},{wch:10},{wch:12},{wch:16},{wch:8},{wch:8},{wch:8},{wch:12}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Results");
+  var fname=(t?t.name.replace(/\s+/g,"_"):"Results")+"_"+new Date().toISOString().slice(0,10)+".xlsx";
+  XLSX.writeFile(wb,fname);
+  showToast("Exported "+list.length+" results.");
+}
+
+// ═══════════════ IMPORT RESULTS FROM EXCEL ═══════════════
+var xlRows=[], xlHeaders=[];
+var colMap={name:"",rollNo:"",cls:"",subject:"",marks:"",total:""};
+var FIELD_KW={
+  name:["name","student","full name","pupil","sname","student name"],
+  rollNo:["roll","rollno","roll no","roll number","regno","reg no","sr","id"],
+  cls:["class","grade","section","std","standard","form"],
+  subject:["subject","sub","course","paper"],
+  marks:["marks","obtained","score","mark","got","achieved","obt"],
+  total:["total","max","maximum","full marks","out of","outof","full","tot"]
+};
+function detectField(header){
+  var h=String(header).toLowerCase().trim();
+  var fs=Object.keys(FIELD_KW);
+  for(var i=0;i<fs.length;i++){var kws=FIELD_KW[fs[i]];for(var j=0;j<kws.length;j++){if(h===kws[j]||h.indexOf(kws[j])!==-1)return fs[i];}}
+  return "";
+}
+function openImportModal(){
+  if(!staffSelectedTestId){showToast("Please select or create a test first.");return;}
+  resetImport(); openModal("modal-import");
+}
+function resetImport(){
+  xlRows=[];xlHeaders=[];colMap={name:"",rollNo:"",cls:"",subject:"",marks:"",total:""};
+  document.getElementById("imp-s1").style.display="";
+  document.getElementById("imp-s2").style.display="none";
+  document.getElementById("imp-s3").style.display="none";
+  document.getElementById("xl-inp").value="";
+}
+function handleXLFile(e){
+  var file=e.target.files[0]; if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var data=new Uint8Array(ev.target.result);
+      var wb=XLSX.read(data,{type:"array"});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+      if(rows.length<2){showToast("File has no data rows.");return;}
+      xlHeaders=rows[0].map(function(h){return String(h).trim();});
+      xlRows=rows.slice(1).filter(function(r){return r.some(function(c){return String(c).trim()!=="";});});
+      colMap={name:"",rollNo:"",cls:"",subject:"",marks:"",total:""};
+      xlHeaders.forEach(function(h,i){var f=detectField(h);if(f&&colMap[f]==="")colMap[f]=String(i);});
+      document.getElementById("xl-fname").textContent=file.name+" ("+xlRows.length+" rows)";
+      buildColMapGrid(); buildXLPreview();
+      document.getElementById("imp-s1").style.display="none";
+      document.getElementById("imp-s2").style.display="";
+    }catch(err){showToast("Could not read file.");}
+  };
+  reader.readAsArrayBuffer(file);
+}
+function buildColMapGrid(){
+  var fields=[
+    {key:"name",label:"Student Name",req:true},
+    {key:"rollNo",label:"Roll No",req:false},
+    {key:"cls",label:"Class",req:true},
+    {key:"subject",label:"Subject",req:true},
+    {key:"marks",label:"Marks",req:true},
+    {key:"total",label:"Total Marks",req:false}
+  ];
+  var html="";
+  fields.forEach(function(f){
+    html+='<div><label style="display:block;font-size:11px;font-weight:600;color:#6a6f8a;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">'+f.label+(f.req?' <span style="color:#ef4444">*</span>':"")+'</label>';
+    html+='<select class="imp-map-sel" onchange="colMap[\''+f.key+'\']=this.value;buildXLPreview()">';
+    html+='<option value="">-- skip --</option>';
+    xlHeaders.forEach(function(h,i){html+='<option value="'+i+'"'+(colMap[f.key]===String(i)?" selected":"")+">"+esc(h)+"</option>";});
+    html+="</select></div>";
+  });
+  document.getElementById("col-map-grid").innerHTML=html;
+}
+function getXV(row,key){
+  var idx=colMap[key]; if(idx===""||idx===undefined||idx===null)return"";
+  var v=row[parseInt(idx)]; return(v===undefined||v===null)?"":String(v).trim();
+}
+function buildXLPreview(){
+  var html='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html+='<tr style="background:#0d0f1a"><th style="padding:6px 10px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Name</th><th style="padding:6px 10px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Roll No</th><th style="padding:6px 10px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Class</th><th style="padding:6px 10px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Subject</th><th style="padding:6px 10px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Marks</th><th style="padding:6px 10px;border:1px solid #2a2f48;color:#9a9fba;text-align:left">Grade</th></tr>';
+  var valid=0;
+  xlRows.forEach(function(row){
+    var name=getXV(row,"name")||"--";
+    var roll=getXV(row,"rollNo")||"--";
+    var cls=getXV(row,"cls")||"--";
+    var subj=getXV(row,"subject")||"--";
+    var mRaw=getXV(row,"marks");
+    var tRaw=(colMap["total"]!=="")?getXV(row,"total"):"100";
+    var m=parseFloat(mRaw)||0, t=parseFloat(tRaw)||100;
+    var g=calcGrade(m,t);
+    var ok=(name!=="--"&&cls!=="--"&&subj!=="--"&&mRaw!=="");
+    if(ok)valid++;
+    html+='<tr style="opacity:'+(ok?"1":"0.3")+'"><td style="padding:5px 10px;border:1px solid #161928;color:#b8bccc">'+esc(name)+'</td><td style="padding:5px 10px;border:1px solid #161928;color:#b8bccc">'+esc(roll)+'</td><td style="padding:5px 10px;border:1px solid #161928;color:#b8bccc">'+esc(cls)+'</td><td style="padding:5px 10px;border:1px solid #161928;color:#b8bccc">'+esc(subj)+'</td><td style="padding:5px 10px;border:1px solid #161928;color:#b8bccc">'+(mRaw||"--")+'</td><td style="padding:5px 10px;border:1px solid #161928"><span class="grade '+gradeCls(g)+'">'+g+'</span></td></tr>';
+  });
+  html+="</table>";
+  document.getElementById("xl-preview").innerHTML=html;
+  document.getElementById("xl-count").textContent=valid+" / "+xlRows.length;
+}
+function doImport(){
+  var imp=0,skip=0;
+  xlRows.forEach(function(row){
+    var name=getXV(row,"name"), roll=getXV(row,"rollNo");
+    var cls=getXV(row,"cls")||classes[0], subj=getXV(row,"subject");
+    var mRaw=getXV(row,"marks");
+    var tRaw=(colMap["total"]!=="")?getXV(row,"total"):"100";
+    if(!name||!subj||mRaw===""){skip++;return;}
+    var m=parseFloat(mRaw)||0, t=parseFloat(tRaw)||100;
+    results.push({id:uid(),testId:staffSelectedTestId,studentName:name,rollNo:roll||"--",cls:cls,subject:subj,marks:m,total:t,grade:calcGrade(m,t),teacherId:CU.id});
+    imp++;
+  });
+  document.getElementById("imp-s2").style.display="none";
+  document.getElementById("imp-s3").style.display="";
+  document.getElementById("imp-done-msg").textContent=imp+" result"+(imp===1?"":"s")+" imported!";
+  document.getElementById("imp-done-sub").textContent=skip>0?skip+" rows skipped (missing Name/Subject/Marks).":"All rows imported. Grades calculated automatically.";
+}
+
+// ═══════════════ IMPORT STUDENTS ═══════════════
+function openStudentImportModal(){
+  document.getElementById("si-s1").style.display="";
+  document.getElementById("si-s2").style.display="none";
+  document.getElementById("si-inp").value="";
+  openModal("modal-import-students");
+}
+function handleStudentImport(e){
+  var file=e.target.files[0]; if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var data=new Uint8Array(ev.target.result);
+      var wb=XLSX.read(data,{type:"array"});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+      if(rows.length<2){showToast("File has no data rows.");return;}
+      var headers=rows[0].map(function(h){return String(h).trim().toLowerCase();});
+      var nameIdx=-1,rollIdx=-1,clsIdx=-1;
+      headers.forEach(function(h,i){
+        if(h.indexOf("name")!==-1)nameIdx=i;
+        if(h.indexOf("roll")!==-1||h.indexOf("id")!==-1)rollIdx=i;
+        if(h.indexOf("class")!==-1||h.indexOf("grade")!==-1)clsIdx=i;
+      });
+      var dataRows=rows.slice(1).filter(function(r){return r.some(function(c){return String(c).trim()!=="";});});
+      var added=0,skip=0;
+      dataRows.forEach(function(row){
+        var name=nameIdx>=0?String(row[nameIdx]||"").trim():"";
+        var roll=rollIdx>=0?String(row[rollIdx]||"").trim():"";
+        var cls=clsIdx>=0?String(row[clsIdx]||"").trim():classes[0];
+        if(!name||!roll){skip++;return;}
+        // check not already exists
+        var exists=users.some(function(u){return u.rollNo===roll&&u.role==="student";});
+        if(exists){skip++;return;}
+        users.push({id:uid(),name:name,role:"student",username:roll,password:roll,cls:cls,rollNo:roll});
+        added++;
+      });
+      document.getElementById("si-s1").style.display="none";
+      document.getElementById("si-s2").style.display="";
+      document.getElementById("si-done-msg").textContent=added+" student"+(added===1?"":"s")+" imported!";
+      document.getElementById("si-done-sub").textContent=(skip>0?skip+" rows skipped (missing name/roll or duplicate). ":"")+"Students can now login with their Roll Number.";
+      buildQuickBtns();
+    }catch(err){showToast("Could not read file.");}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══════════════ CALENDAR ═══════════════
+function setupCalPage(){
+  document.getElementById("btn-add-ev").style.display=(CU.role==="principal")?"":"none";
+}
+function changeMonth(dir){calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+dir,1);renderCalendar();}
+function renderCalendar(){
+  var canEd=(CU.role==="principal");
+  var y=calMonth.getFullYear(),mo=calMonth.getMonth();
+  var today=todayStr();
+  document.getElementById("cal-lbl").textContent=calMonth.toLocaleString("en",{month:"long",year:"numeric"});
+  var fd=new Date(y,mo,1).getDay(), dm=new Date(y,mo+1,0).getDate();
+  function ds(d){return y+"-"+String(mo+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");}
+  function evOn(d){return calEvents.filter(function(e){return e.date===ds(d);});}
+  var grid=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(function(h){return'<div class="cal-hdr">'+h+'</div>';}).join("");
+  for(var i=0;i<fd;i++)grid+='<div class="cal-cell empty"></div>';
+  for(var d=1;d<=dm;d++){
+    var evs=evOn(d),isT=ds(d)===today;
+    var cls2="cal-cell"+(isT?" today":"")+(evs.length?" has-ev":"");
+    var inner='<div class="cal-num">'+d+'</div>';
+    evs.slice(0,2).forEach(function(e){
+      inner+='<div class="cal-dot" style="background:'+(TYPE_COLOR[e.type]||"#6366f1")+'"></div>';
+      inner+='<div class="cal-evlbl" style="color:'+(TYPE_COLOR[e.type]||"#6366f1")+'">'+esc(e.title.slice(0,10))+(e.title.length>10?"...":"")+'</div>';
+    });
+    grid+='<div class="'+cls2+'">'+inner+'</div>';
+  }
+  document.getElementById("cal-grid").innerHTML=grid;
+  var sorted=calEvents.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+  var el=document.getElementById("ev-list");
+  if(!sorted.length){el.innerHTML=emptyHTML("&#128197;","No events yet.");return;}
+  el.innerHTML=sorted.map(function(e){
+    var acts=canEd?'<div class="ev-acts"><button class="btn btn-ghost btn-sm" onclick="openCalModal('+e.id+')">&#9999;</button><button class="btn btn-danger btn-sm" onclick="askConfirm(\'Delete event?\',function(){delCal('+e.id+')})">&#128465;</button></div>':"";
+    return'<div class="ev-item"><div class="ev-dot" style="background:'+(TYPE_COLOR[e.type]||"#6366f1")+'"></div><div class="ev-body"><div class="ev-title">'+esc(e.title)+'</div><div class="ev-date">'+fmtDate(e.date)+' &mdash; <span style="color:'+TYPE_COLOR[e.type]+';text-transform:capitalize">'+e.type+'</span></div>'+(e.description?'<div class="ev-desc">'+esc(e.description)+'</div>':"")+'</div>'+acts+'</div>';
+  }).join("");
+}
+function openCalModal(id){
+  editCalId=id; buildEventTypeDrop();
+  document.getElementById("cal-modal-title").textContent=id?"Edit Event":"Add Event";
+  if(id){
+    var e=calEvents.find(function(x){return x.id===id;});
+    document.getElementById("c-date").value=e.date;
+    document.getElementById("c-title").value=e.title;
+    document.getElementById("c-desc").value=e.description||"";
+    dropVal["c-type"]=e.type; buildEventTypeDrop();
+  } else {
+    document.getElementById("c-date").value=todayStr();
+    document.getElementById("c-title").value="";
+    document.getElementById("c-desc").value="";
+    dropVal["c-type"]="event"; buildEventTypeDrop();
+  }
+  openModal("modal-cal");
+}
+function saveCal(){
+  var date=document.getElementById("c-date").value;
+  var type=dropVal["c-type"]||"event";
+  var title=document.getElementById("c-title").value.trim();
+  var desc=document.getElementById("c-desc").value.trim();
+  if(!date||!title){showToast("Please fill Date and Title.");return;}
+  if(editCalId){for(var i=0;i<calEvents.length;i++){if(calEvents[i].id===editCalId){calEvents[i]=Object.assign({},calEvents[i],{date:date,type:type,title:title,description:desc});break;}}}
+  else calEvents.push({id:uid(),date:date,type:type,title:title,description:desc});
+  closeModal("modal-cal"); renderCalendar(); if(curPage==="dashboard")renderDashboard();
+}
+function delCal(id){
+  calEvents=calEvents.filter(function(x){return x.id!==id;});
+  renderCalendar(); if(curPage==="dashboard")renderDashboard();
+}
+
+// ═══════════════ CLASSES ═══════════════
+function renderClasses(){
+  document.getElementById("cls-grid").innerHTML=classes.map(function(c,i){
+    return'<div class="cls-chip"><span>'+esc(c)+'</span><button class="cls-chip-del" onclick="askConfirm(\'Remove '+esc(c)+'?\',function(){delClass('+i+')})">&#10005;</button></div>';
+  }).join("");
+}
+function addClass(){
+  var inp=document.getElementById("new-cls-inp"),name=inp.value.trim();
+  if(!name)return;
+  if(classes.indexOf(name)!==-1){showToast("Class already exists.");return;}
+  classes.push(name); inp.value=""; renderClasses();
+}
+function delClass(i){classes.splice(i,1);renderClasses();}
+
+// ═══════════════ USERS ═══════════════
+function switchUserTab(tab){
+  userTab=tab;
+  document.getElementById("tab-teachers").classList.toggle("active",tab==="teachers");
+  document.getElementById("tab-students").classList.toggle("active",tab==="students");
+  document.getElementById("btn-add-user").textContent=tab==="teachers"?"+ Add Teacher":"+ Add Student";
+  document.getElementById("btn-import-students").style.display=tab==="students"?"inline-flex":"none";
+  renderUsers();
+}
+function renderUsers(){
+  var isT=(userTab==="teachers");
+  var list=users.filter(function(u){return u.role===(isT?"teacher":"student");});
+  document.getElementById("users-thead").innerHTML="<tr><th>Name</th><th>Username</th><th>Class</th>"+ (!isT?"<th>Roll No.</th>":"")+"<th>Status</th><th>Actions</th></tr>";
+  if(!list.length){
+    document.getElementById("users-tbody").innerHTML='<tr><td colspan="6" style="text-align:center;padding:36px;color:#4a4f6a">No '+userTab+' found.</td></tr>';
+    return;
+  }
+  document.getElementById("users-tbody").innerHTML=list.map(function(u){
+    return'<tr><td class="bold">'+esc(u.name)+'</td><td class="mono">'+esc(u.username)+'</td><td>'+esc(u.cls||"")+'</td>'+(!isT?'<td>'+esc(u.rollNo||"")+'</td>':"")+'<td><span class="status-badge">Active</span></td><td><div style="display:flex;gap:5px"><button class="btn btn-ghost btn-sm" onclick="openUserModal('+u.id+')">&#9999; Edit</button><button class="btn btn-danger btn-sm" onclick="askConfirm(\'Delete user?\',function(){delUser('+u.id+')})">&#128465;</button></div></td></tr>';
+  }).join("");
+}
+function openUserModal(id){
+  editUserId=id;
+  var isT=(userTab==="teachers");
+  document.getElementById("user-modal-title").textContent=id?("Edit "+(isT?"Teacher":"Student")):("Add New "+(isT?"Teacher":"Student"));
+  document.getElementById("u-roll-wrap").style.display=isT?"none":"block";
+  buildClassDrops();
+  if(id){
+    var u=users.find(function(x){return x.id===id;});
+    document.getElementById("u-name").value=u.name;
+    document.getElementById("u-uname").value=u.username;
+    document.getElementById("u-pass").value=u.password;
+    document.getElementById("u-roll").value=u.rollNo||"";
+    dropVal["u-cls"]=u.cls||classes[0]; buildDrop("u-cls",classes,null);
+  } else {
+    document.getElementById("u-name").value="";
+    document.getElementById("u-uname").value="";
+    document.getElementById("u-pass").value="1234";
+    document.getElementById("u-roll").value="";
+    dropVal["u-cls"]=classes[0]||"Class 8"; buildDrop("u-cls",classes,null);
+  }
+  openModal("modal-user");
+}
+function saveUser(){
+  var name=document.getElementById("u-name").value.trim();
+  var uname=document.getElementById("u-uname").value.trim();
+  var pass=document.getElementById("u-pass").value.trim();
+  var cls=dropVal["u-cls"]||classes[0];
+  var roll=document.getElementById("u-roll").value.trim();
+  if(!name||!uname){showToast("Please fill Name and Username.");return;}
+  var role=(userTab==="teachers")?"teacher":"student";
+  var obj={name:name,username:uname,password:pass,role:role,cls:cls};
+  if(role==="student")obj.rollNo=roll;
+  if(editUserId){for(var i=0;i<users.length;i++){if(users[i].id===editUserId){users[i]=Object.assign({},users[i],obj);break;}}}
+  else users.push(Object.assign({id:uid()},obj));
+  closeModal("modal-user"); buildQuickBtns(); renderUsers();
+}
+function delUser(id){users=users.filter(function(x){return x.id!==id;});buildQuickBtns();renderUsers();}
+
+// ═══════════════ INIT ═══════════════
+window.onload=function(){
+  buildQuickBtns();
+  document.getElementById("d-date").value=todayStr();
+  document.getElementById("c-date").value=todayStr();
+  document.getElementById("test-date").value=todayStr();
+  buildEventTypeDrop();
+};
+</script>
+</body>
+</html>
