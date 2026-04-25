@@ -243,6 +243,7 @@ tr:hover td{background:var(--soft)}
 .modal-overlay.open{display:flex}
 .modal-box{background:#fff;border-radius:20px;padding:28px;width:min(480px,100%);max-height:90vh;overflow-y:auto;box-shadow:var(--sh2)}
 .modal-box.wide{width:min(580px,100%)}
+.modal-box.fullscreen{width:calc(100vw - 20px);max-width:100vw;height:calc(100vh - 20px);max-height:calc(100vh - 20px);border-radius:12px;display:flex;flex-direction:column;padding:0;overflow:hidden}
 .modal-title{font-family:'Playfair Display',serif;font-size:20px;color:var(--txt);margin-bottom:20px}
 .form-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-group{margin-bottom:14px}
@@ -663,6 +664,18 @@ table     { min-width: 100%; border-collapse: collapse; }
       <div class="page" id="page-bin">
         <div id="bin-content"></div>
       </div>
+      <div class="page" id="page-backup"></div>
+      <div class="page" id="page-annual"></div>
+<!-- Annual view modal -->
+<div class="modal-overlay" id="modal-annual-view">
+  <div class="modal-box fullscreen">
+    <div style="flex-shrink:0;padding:12px 20px;background:#fff;border-bottom:2px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <span style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:var(--txt)">&#127941; Annual Result</span>
+      <button onclick="closeModal('modal-annual-view')" style="background:#fee2e2;border:2px solid #fecaca;color:#b91c1c;border-radius:8px;padding:6px 16px;font-size:13px;font-weight:700;cursor:pointer">&#10005; Close</button>
+    </div>
+    <div id="annual-modal-body" style="overflow:auto;flex:1;padding:16px"></div>
+  </div>
+</div>
 
       <!-- CLASSES -->
       <div class="page" id="page-classes">
@@ -961,6 +974,9 @@ function ensureClass(cls){
 }
 
 var recycleBin=[];  // {id, type, label, meta, icon, deletedAt, data, relatedResults, relatedDiary}
+var annualResults=[];  // {id, testName, session, cls, uploadedBy, uploadedByName, date, results:[{rollNo,name,fatherName,subjects:{},total,obtained,pct,grade,position}]}
+var annualSectionEnabled=false; // principal toggles this on/off
+var annualAllowedTeachers=[]; // array of teacher IDs allowed to upload
 var binFilter='all';
 var staffSelectedTestId=null,studentSelectedTestId=null,staffViewMode='test';
 var editDiaryId=null,editResultId=null,editCalId=null,editUserId=null;
@@ -1084,7 +1100,9 @@ var PAGE_META={
   classes:{title:"Classes & Sections",sub:"Manage class list"},
   weekly:{title:"Weekly Report",sub:"Your performance each week"},
   bin:{title:"Recycle Bin",sub:"Deleted items — restore or permanently remove"},
-  classreport:{title:"Class Report",sub:"Full analytics for each class"}
+  classreport:{title:"Class Report",sub:"Full analytics for each class"},
+  backup:{title:"Backup & Restore",sub:"Save and restore all school data"},
+  annual:{title:"Annual Results",sub:"Full year result report"}
 };
 function buildSidebar(){
   var u=CU,ini=u.name.split(" ").map(function(w){return w[0];}).slice(0,2).join("");
@@ -1093,7 +1111,19 @@ function buildSidebar(){
   var items=[{id:"dashboard",label:"Dashboard",icon:"&#128202;"},{id:"diary",label:"Daily Diary",icon:"&#128211;"},{id:"results",label:"Tests & Results",icon:"&#128200;"},{id:"calendar",label:"Calendar",icon:"&#128197;"}];
   if(u.role==="student") items.push({id:"weekly",label:"Weekly Report",icon:"&#128203;"});
   if(u.role!=="student") items.push({id:"classreport",label:"Class Report",icon:"&#127979;"});
-  if(u.role==="principal"){items.push({id:"users",label:"Manage Users",icon:"&#128101;"});items.push({id:"classes",label:"Classes & Sections",icon:"&#127979;"});items.push({id:"bin",label:"Recycle Bin",icon:"&#128465;"});}
+  if(u.role==="principal"){
+    items.push({id:"users",label:"Manage Users",icon:"&#128101;"});
+    items.push({id:"classes",label:"Classes & Sections",icon:"&#127979;"});
+    items.push({id:"annual",label:"Annual Results",icon:"&#127941;"});
+    items.push({id:"bin",label:"Recycle Bin",icon:"&#128465;"});
+    items.push({id:"backup",label:"Backup & Restore",icon:"&#128190;"});
+  }
+  if(u.role==="teacher"&&annualSectionEnabled&&annualAllowedTeachers.indexOf(String(u.id))!==-1){
+    items.push({id:"annual",label:"Annual Results",icon:"&#127941;"});
+  }
+  if(u.role==="student"&&annualSectionEnabled){
+    items.push({id:"annual",label:"Annual Results",icon:"&#127941;"});
+  }
   var nav=document.getElementById("sb-nav");nav.innerHTML="";
   items.forEach(function(it){
     var b=document.createElement("button");b.className="nav-item";b.id="nav-"+it.id;
@@ -1102,6 +1132,7 @@ function buildSidebar(){
 }
 function goPage(id){
   curPage=id;
+  buildSidebar(); // refresh sidebar on every navigation to reflect access changes
   document.querySelectorAll(".nav-item").forEach(function(b){b.classList.remove("active");});
   var nb=document.getElementById("nav-"+id);if(nb)nb.classList.add("active");
   document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active");});
@@ -1125,6 +1156,8 @@ function goPage(id){
   if(id==="classes")renderClasses();
   if(id==="weekly")renderWeeklyReport();
   if(id==="bin")renderBin();
+  if(id==="backup")renderBackupPage();
+  if(id==="annual")setupAnnualPage();
   if(id==="classreport")setupClassReportPage();
 }
 
@@ -1136,7 +1169,8 @@ function renderDashboard(){
   if(u.role==="principal"){
     cards+='<div class="stat-card dash-card" data-nav="users" data-tab="teachers"><span class="stat-icon">&#128104;&#8205;&#127979;</span><div class="stat-num">'+users.filter(function(x){return x.role==="teacher";}).length+'</div><div class="stat-label">Teachers</div></div>';
     cards+='<div class="stat-card dash-card" data-nav="users" data-tab="students"><span class="stat-icon">&#127891;</span><div class="stat-num">'+users.filter(function(x){return x.role==="student";}).length+'</div><div class="stat-label">Students</div></div>';
-    cards+='<div class="stat-card dash-card" data-nav="results"><span class="stat-icon">&#128203;</span><div class="stat-num">'+tests.length+'</div><div class="stat-label">Tests</div></div>';
+    cards+='<div class="stat-card dash-card" data-nav="results"><span class="stat-icon">&#128203;</span><div class="stat-num">'+tests.length+'</div><div class="stat-label">Weekly Tests</div></div>';
+    if(annualResults.length) cards+='<div class="stat-card dash-card" data-nav="annual"><span class="stat-icon">&#127941;</span><div class="stat-num">'+annualResults.length+'</div><div class="stat-label">Annual Results</div></div>';
     var binColor=recycleBin.length>0?"color:var(--red)":"color:var(--pri)";
     cards+='<div class="stat-card dash-card" data-nav="bin"><span class="stat-icon">&#128465;</span><div class="stat-num" style="'+binColor+'">'+recycleBin.length+'</div><div class="stat-label">Recycle Bin</div></div>';
   }
@@ -1246,6 +1280,26 @@ function dashboardSearchStudent(q){
     }
     html+='</div>';
 
+    // ── Weekly / Annual tab switcher ─────────────────────────
+    var myAnnual=annualResults.filter(function(ar){
+      return ar.results.some(function(r){
+        return r.rollNo===u.rollNo||r.name.toLowerCase()===u.name.toLowerCase();
+      });
+    });
+    var hasWeekly=myRes.length>0;
+    var hasAnnual=myAnnual.length>0;
+    var dashCardMode="weekly"; // default
+
+    if(hasWeekly||hasAnnual){
+      html+='<div style="display:flex;border-bottom:2px solid var(--border);background:#fff">';
+      html+='<button class="dash-res-tab active" data-tab="weekly" data-roll="'+esc(u.rollNo)+'" style="flex:1;padding:10px 14px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid var(--pri);color:var(--pri)">&#128200; Weekly Tests'+(hasWeekly?' ('+myTests.length+')':'')+'</button>';
+      if(hasAnnual) html+='<button class="dash-res-tab" data-tab="annual" data-roll="'+esc(u.rollNo)+'" style="flex:1;padding:10px 14px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:var(--txt3)">&#127941; Annual Results ('+myAnnual.length+')</button>';
+      html+='</div>';
+    }
+
+    // Weekly content wrapper
+    html+='<div class="dash-weekly-content" data-roll="'+esc(u.rollNo)+'">';
+
     // ── Results table ─────────────────────────────────────────
     if(!myRes.length){
       html+='<div style="padding:24px 20px;font-size:13px;color:var(--txt3);font-weight:600;text-align:center">&#128203; No results uploaded yet.</div>';
@@ -1353,6 +1407,48 @@ function dashboardSearchStudent(q){
       html+='</td></tr>';
       html+='</tbody></table></div>';
     }
+    html+='</div>'; // close weekly content
+
+    // ── Annual content (hidden by default) ────────────────────
+    html+='<div class="dash-annual-content" data-roll="'+esc(u.rollNo)+'" style="display:none">';
+    if(hasAnnual){
+      myAnnual.forEach(function(ar){
+        var myRow=ar.results.find(function(r){return r.rollNo===u.rollNo||r.name.toLowerCase()===u.name.toLowerCase();});
+        if(!myRow)return;
+        var mc=myRow.pct<50?"#b91c1c":myRow.pct<70?"#c2410c":"#15803d";
+        html+='<div style="padding:14px 18px;border-bottom:1px solid var(--s2)">';
+        html+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">';
+        html+='<div><div style="font-weight:800;color:var(--txt)">'+esc(ar.testName)+'</div>';
+        html+='<div style="font-size:11px;color:var(--txt3)">'+esc(ar.cls)+' &bull; Session: '+esc(ar.session)+'</div></div>';
+        html+='<div style="display:flex;align-items:center;gap:8px">';
+        html+='<span style="font-size:20px;font-weight:800;color:'+mc+'">'+myRow.pct+'%</span>';
+        html+='<span class="grade '+gradeCls(myRow.grade)+'">'+myRow.grade+'</span>';
+        if(myRow.position) html+='<span style="background:var(--soft);border:2px solid var(--border);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:800;color:var(--pri)">&#127942; Pos: '+myRow.position+'</span>';
+        html+='</div></div>';
+        // Subjects mini table
+        var subjects=Object.keys(myRow.subjects||{});
+        if(subjects.length){
+          html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+          html+='<tr style="background:#f8f9ff"><th style="padding:7px 12px;border:2px solid var(--border);color:var(--pri);text-align:left">Subject</th><th style="padding:7px 12px;border:2px solid var(--border);color:var(--pri)">Marks</th><th style="padding:7px 12px;border:2px solid var(--border);color:var(--pri)">%</th><th style="padding:7px 12px;border:2px solid var(--border);color:var(--pri)">Grade</th></tr>';
+          subjects.forEach(function(s){
+            var sd=myRow.subjects[s]||{};
+            var sp=sd.total>0?Math.round((sd.marks/sd.total)*100):0;
+            var sg=sd.absent?"AB":calcGrade(sd.marks,sd.total);
+            var smc=sd.absent?"#92400e":sp<50?"#b91c1c":sp<70?"#c2410c":"var(--pri)";
+            html+='<tr><td style="padding:7px 12px;border:2px solid var(--s2);font-weight:700">'+esc(s)+'</td>';
+            html+='<td style="padding:7px 12px;border:2px solid var(--s2);text-align:center;font-weight:700;color:'+smc+'">'+(sd.absent?"AB":sd.marks+"/"+sd.total)+'</td>';
+            html+='<td style="padding:7px 12px;border:2px solid var(--s2);text-align:center;font-weight:700;color:'+smc+'">'+(sd.absent?"—":sp+"%")+'</td>';
+            html+='<td style="padding:7px 12px;border:2px solid var(--s2);text-align:center"><span class="grade '+gradeCls(sg)+'">'+sg+'</span></td></tr>';
+          });
+          html+='</table></div>';
+        }
+        html+='</div>';
+      });
+    } else {
+      html+=emptyHTML("&#127941;","No annual results yet.");
+    }
+    html+='</div>'; // close annual content
+
     html+='</div>'; // close student card
   });
 
@@ -1362,6 +1458,22 @@ function dashboardSearchStudent(q){
     btn.onclick=function(e){
       e.stopPropagation();
       openStudentProfile(this.getAttribute("data-uid"));
+    };
+  });
+  // Weekly/Annual tab switcher
+  document.querySelectorAll("#dash-search-results .dash-res-tab").forEach(function(btn){
+    btn.onclick=function(){
+      var roll=this.getAttribute("data-roll");
+      var tab=this.getAttribute("data-tab");
+      // Update tab styles
+      var card=this.closest(".dash-student-card")||document.getElementById("dash-search-results");
+      card.querySelectorAll(".dash-res-tab[data-roll='"+roll+"']").forEach(function(b){
+        b.style.borderBottomColor="transparent";b.style.color="var(--txt3)";b.classList.remove("active");
+      });
+      this.style.borderBottomColor="var(--pri)";this.style.color="var(--pri)";this.classList.add("active");
+      // Show/hide content
+      document.querySelectorAll(".dash-weekly-content[data-roll='"+roll+"']").forEach(function(d){d.style.display=tab==="weekly"?"":"none";});
+      document.querySelectorAll(".dash-annual-content[data-roll='"+roll+"']").forEach(function(d){d.style.display=tab==="annual"?"":"none";});
     };
   });
 }
@@ -3003,6 +3115,769 @@ function exportWeeklyReport(testId){
 }
 
 
+
+// ══════════════════════════════════════════════════════════════
+// ANNUAL RESULTS SYSTEM
+// ══════════════════════════════════════════════════════════════
+
+function setupAnnualPage(){
+  var page=document.getElementById("page-annual");
+  if(!page)return;
+  var u=CU;
+
+  if(u.role==="principal"){
+    renderAnnualPrincipal(page);
+  } else if(u.role==="teacher"){
+    // Check if teacher still has access
+    if(!annualSectionEnabled||annualAllowedTeachers.indexOf(String(u.id))===-1){
+      page.innerHTML='<div style="text-align:center;padding:60px 20px">'
+        +'<div style="font-size:48px;margin-bottom:16px">&#128683;</div>'
+        +'<div style="font-family:Georgia,serif;font-size:20px;color:var(--txt);margin-bottom:8px">Access Restricted</div>'
+        +'<div style="font-size:13px;color:var(--txt3)">The principal has not given you access to Annual Results.</div>'
+        +'</div>';
+      return;
+    }
+    renderAnnualTeacher(page);
+  } else if(u.role==="student"){
+    // Check if section is enabled
+    if(!annualSectionEnabled){
+      page.innerHTML='<div style="text-align:center;padding:60px 20px">'
+        +'<div style="font-size:48px;margin-bottom:16px">&#128683;</div>'
+        +'<div style="font-family:Georgia,serif;font-size:20px;color:var(--txt);margin-bottom:8px">Section Not Available</div>'
+        +'<div style="font-size:13px;color:var(--txt3)">Annual Results are not yet published.</div>'
+        +'</div>';
+      return;
+    }
+    renderAnnualStudent(page);
+  }
+}
+
+// ── PRINCIPAL VIEW ────────────────────────────────────────────
+function renderAnnualPrincipal(page){
+  var html='';
+
+  // Section toggle card
+  html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:18px 22px;margin-bottom:16px;box-shadow:var(--sh);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">';
+  html+='<div><div style="font-family:Georgia,serif;font-size:16px;color:var(--txt);font-weight:700">&#127941; Annual Results Section</div>';
+  html+='<div style="font-size:12px;color:var(--txt3);margin-top:3px">When enabled, students and allowed teachers can see this section</div></div>';
+  html+='<div style="display:flex;align-items:center;gap:10px">';
+  html+='<span style="font-size:13px;font-weight:700;color:'+(annualSectionEnabled?"#15803d":"#b91c1c")+'">'+(annualSectionEnabled?"&#9989; Visible":"&#10060; Hidden")+'</span>';
+  html+='<button class="btn '+(annualSectionEnabled?"btn-danger":"btn-primary")+'" id="btn-toggle-annual">'+(annualSectionEnabled?"Hide Section":"Enable Section")+'</button>';
+  html+='</div></div>';
+
+  // Teacher access card
+  var teachers=users.filter(function(u){return u.role==="teacher";});
+  html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:18px 22px;margin-bottom:16px;box-shadow:var(--sh)">';
+  html+='<div style="font-size:13px;font-weight:800;color:var(--pri);margin-bottom:12px">&#128101; Teacher Upload Access</div>';
+  if(!teachers.length){
+    html+='<div style="font-size:13px;color:var(--txt3)">No teachers added yet.</div>';
+  } else {
+    html+='<div style="display:flex;flex-direction:column;gap:8px">';
+    teachers.forEach(function(t){
+      var allowed=annualAllowedTeachers.indexOf(String(t.id))!==-1;
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--soft);border-radius:var(--r2)">';
+      html+='<div><div style="font-weight:700;color:var(--txt)">'+esc(t.name)+'</div><div style="font-size:11px;color:var(--txt3)">'+esc(t.cls||"")+'</div></div>';
+      html+='<button class="btn btn-sm '+(allowed?"btn-danger":"btn-primary")+' annual-teacher-toggle" data-tid="'+t.id+'">'+(allowed?"&#10060; Remove Access":"&#9989; Give Access")+'</button>';
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+
+  // Upload card
+  html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:18px 22px;margin-bottom:16px;box-shadow:var(--sh)">';
+  html+='<div style="font-size:13px;font-weight:800;color:var(--pri);margin-bottom:12px">&#128228; Upload Annual Result Sheet</div>';
+  html+=buildAnnualUploadForm();
+  html+='</div>';
+
+  // Results list
+  html+=buildAnnualResultsList(true);
+
+  page.innerHTML=html;
+  attachAnnualHandlers(true);
+}
+
+// ── TEACHER VIEW ──────────────────────────────────────────────
+function renderAnnualTeacher(page){
+  var html='';
+  html+='<div style="background:linear-gradient(135deg,var(--soft),#e8ecff);border:2px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-bottom:16px">';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--pri)">&#128228; You can upload annual results. Only the principal can delete them.</div>';
+  html+='</div>';
+  html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:18px 22px;margin-bottom:16px;box-shadow:var(--sh)">';
+  html+='<div style="font-size:13px;font-weight:800;color:var(--pri);margin-bottom:12px">&#128228; Upload Annual Result Sheet</div>';
+  html+=buildAnnualUploadForm();
+  html+='</div>';
+  html+=buildAnnualResultsList(false);
+  page.innerHTML=html;
+  attachAnnualHandlers(false);
+}
+
+// ── STUDENT VIEW ──────────────────────────────────────────────
+function renderAnnualStudent(page){
+  var u=CU;
+  var myResults=annualResults.filter(function(ar){
+    return ar.results.some(function(r){return r.rollNo===u.rollNo;});
+  });
+
+  var html='<div style="max-width:800px;margin:0 auto">';
+  html+='<div style="background:linear-gradient(135deg,var(--pri),var(--pri2));border-radius:var(--r);padding:20px 24px;color:#fff;margin-bottom:20px">';
+  html+='<div style="font-size:22px;font-weight:800">&#127941; Annual Results</div>';
+  html+='<div style="font-size:13px;opacity:.85;margin-top:4px">'+esc(u.name)+' — Roll No: '+esc(u.rollNo)+' — '+esc(u.cls)+'</div>';
+  html+='</div>';
+
+  if(!myResults.length){
+    html+=emptyHTML("&#127941;","No annual results uploaded yet.");
+    html+='</div>';
+    page.innerHTML=html;return;
+  }
+
+  myResults.forEach(function(ar){
+    var myRow=ar.results.find(function(r){return r.rollNo===u.rollNo;});
+    if(!myRow)return;
+    var subjects=Object.keys(myRow.subjects||{});
+    var statusColor=myRow.grade==="F"?"#b91c1c":"#15803d";
+    var statusBg=myRow.grade==="F"?"#fee2e2":"#dcfce7";
+
+    html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);margin-bottom:18px;overflow:hidden;box-shadow:var(--sh)">';
+    // Header
+    html+='<div style="background:linear-gradient(135deg,var(--pri),var(--pri2));padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
+    html+='<div><div style="font-size:16px;font-weight:800;color:#fff">'+esc(ar.testName)+'</div>';
+    html+='<div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:2px">Session: '+esc(ar.session)+' &bull; '+esc(ar.cls)+'</div></div>';
+    html+='<div style="text-align:center;background:rgba(255,255,255,.2);border-radius:12px;padding:10px 18px">';
+    html+='<div style="font-size:28px;font-weight:800;color:#fff">'+myRow.pct+'%</div>';
+    html+='<span style="background:rgba(255,255,255,.25);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:800;color:#fff">'+myRow.grade+'</span>';
+    html+='</div></div>';
+    // Position + status bar
+    html+='<div style="padding:10px 20px;background:'+statusBg+';border-bottom:2px solid var(--border);display:flex;gap:14px;flex-wrap:wrap;align-items:center">';
+    html+='<span style="font-weight:800;color:'+statusColor+'">'+(myRow.grade==="F"?"&#10060; FAILED":"&#9989; PASSED")+'</span>';
+    if(myRow.position){html+='<span style="background:#fff;border:2px solid var(--border);border-radius:20px;padding:3px 14px;font-size:13px;font-weight:800;color:var(--pri)">&#127942; Position: '+myRow.position+'</span>';}
+    html+='<span style="font-size:13px;font-weight:700;color:var(--txt2)">'+myRow.obtained+' / '+myRow.total+' marks</span>';
+    html+='</div>';
+    // Subjects table
+    if(subjects.length){
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html+='<thead><tr style="background:#f8f9ff">';
+      html+='<th style="padding:10px 16px;text-align:left;color:var(--pri);font-size:11px;text-transform:uppercase;border-bottom:2px solid var(--border)">Subject</th>';
+      html+='<th style="padding:10px 14px;text-align:center;color:var(--pri);font-size:11px;border-bottom:2px solid var(--border)">Marks</th>';
+      html+='<th style="padding:10px 14px;text-align:center;color:var(--pri);font-size:11px;border-bottom:2px solid var(--border)">Total</th>';
+      html+='<th style="padding:10px 14px;text-align:center;color:var(--pri);font-size:11px;border-bottom:2px solid var(--border)">%</th>';
+      html+='<th style="padding:10px 14px;text-align:center;color:var(--pri);font-size:11px;border-bottom:2px solid var(--border)">Grade</th>';
+      html+='</tr></thead><tbody>';
+      subjects.forEach(function(subj){
+        var sd=myRow.subjects[subj];
+        if(!sd)return;
+        var sp=sd.total>0?Math.round((sd.marks/sd.total)*100):0;
+        var sg=sd.absent?"AB":calcGrade(sd.marks,sd.total);
+        var mc=sd.absent?"#92400e":sp<50?"#b91c1c":sp<70?"#c2410c":"var(--pri)";
+        html+='<tr><td style="padding:10px 16px;font-weight:700;color:var(--txt);border-bottom:1px solid #f0f2ff">'+esc(subj)+'</td>';
+        html+='<td style="padding:10px 14px;text-align:center;border-bottom:1px solid #f0f2ff"><strong style="color:'+mc+'">'+(sd.absent?"AB":sd.marks)+'</strong></td>';
+        html+='<td style="padding:10px 14px;text-align:center;color:var(--txt3);border-bottom:1px solid #f0f2ff">'+sd.total+'</td>';
+        html+='<td style="padding:10px 14px;text-align:center;font-weight:700;color:'+mc+';border-bottom:1px solid #f0f2ff">'+(sd.absent?"—":sp+'%')+'</td>';
+        html+='<td style="padding:10px 14px;text-align:center;border-bottom:1px solid #f0f2ff"><span class="grade '+gradeCls(sg)+'">'+sg+'</span></td>';
+        html+='</tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  page.innerHTML=html;
+}
+
+// ── Upload form builder ───────────────────────────────────────
+function buildAnnualUploadForm(){
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+  html+='<div><label class="form-label">Exam Name</label><input class="form-input" id="ar-test-name" placeholder="e.g. Annual Exam" style="margin:0"/></div>';
+  html+='<div><label class="form-label">Session</label><input class="form-input" id="ar-session" placeholder="e.g. 2025-2026" style="margin:0"/></div>';
+  html+='</div>';
+  // Class is auto-detected from the XLS file — no need for manual selector
+  html+='<div style="background:var(--soft);border:2px dashed #c5cdf5;border-radius:var(--r2);padding:20px;text-align:center;cursor:pointer" id="ar-dropzone">';
+  html+='<div style="font-size:30px">&#128196;</div>';
+  html+='<div style="font-weight:700;color:var(--pri);margin-top:6px">Click to upload Oxbridge XLS result sheet</div>';
+  html+='<div style="font-size:11px;color:var(--txt3);margin-top:3px">Same format as Tests & Results import</div>';
+  html+='<input type="file" id="ar-file-inp" accept=".xlsx,.xls" style="display:none"/>';
+  html+='</div>';
+  html+='<div id="ar-preview" style="margin-top:12px"></div>';
+  html+='<button class="btn btn-primary" id="ar-upload-btn" style="width:100%;margin-top:12px;display:none">&#128228; Upload Annual Results</button>';
+  return html;
+}
+
+// ── Results list builder ──────────────────────────────────────
+function buildAnnualResultsList(isPrincipal){
+  if(!annualResults.length) return emptyHTML("&#127941;","No annual results uploaded yet. Upload a result sheet above.");
+
+  // Group by class
+  var clsGroups={};
+  annualResults.forEach(function(ar){
+    if(!clsGroups[ar.cls])clsGroups[ar.cls]=[];
+    clsGroups[ar.cls].push(ar);
+  });
+
+  var html='<div style="font-size:13px;font-weight:800;color:var(--pri);margin-bottom:14px">&#127941; Annual Result Classes</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">';
+
+  Object.keys(clsGroups).sort().forEach(function(cls){
+    var clsItems=clsGroups[cls].sort(function(a,b){return a.session.localeCompare(b.session);});
+    var totalStu=clsItems.reduce(function(acc,ar){return acc+ar.results.length;},0);
+    html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);cursor:pointer" class="ar-cls-card" data-cls="'+esc(cls)+'">';
+    // Card header
+    html+='<div style="background:linear-gradient(135deg,var(--pri),var(--pri2));padding:16px;color:#fff">';
+    html+='<div style="font-size:22px;margin-bottom:6px">&#127941;</div>';
+    html+='<div style="font-family:Georgia,serif;font-size:15px;font-weight:700">'+esc(cls)+'</div>';
+    html+='<div style="font-size:11px;opacity:.8;margin-top:2px">Result</div>';
+    html+='</div>';
+    // Card body
+    html+='<div style="padding:12px 14px">';
+    html+='<div style="font-size:12px;color:var(--txt2);font-weight:700;margin-bottom:6px">'+clsItems.length+' exam'+(clsItems.length>1?"s":"")+'  &bull;  '+totalStu+' students</div>';
+    clsItems.forEach(function(ar){
+      html+='<div style="font-size:11px;color:var(--txt3);margin:2px 0">&#128203; '+esc(ar.testName)+' ('+esc(ar.session)+')</div>';
+    });
+    html+='</div>';
+    // Footer buttons
+    html+='<div style="padding:10px 14px;border-top:2px solid var(--border);display:flex;gap:6px;justify-content:flex-end">';
+    html+='<button class="btn btn-primary btn-sm ar-cls-view-btn" data-cls="'+esc(cls)+'">&#128065; View Results</button>';
+    if(isPrincipal) html+='<button class="btn btn-danger btn-sm ar-cls-del-btn" data-cls="'+esc(cls)+'">&#128465;</button>';
+    html+='</div></div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+// ── Event handler attachment ──────────────────────────────────
+function attachAnnualHandlers(isPrincipal){
+  // Toggle section visibility
+  var toggleBtn=document.getElementById("btn-toggle-annual");
+  if(toggleBtn)toggleBtn.onclick=function(){
+    annualSectionEnabled=!annualSectionEnabled;
+    buildSidebar();
+    renderAnnualPrincipal(document.getElementById("page-annual"));
+    showToast("Annual section "+(annualSectionEnabled?"enabled":"hidden")+".");
+  };
+
+  // Teacher access toggles
+  document.querySelectorAll(".annual-teacher-toggle").forEach(function(btn){
+    btn.onclick=function(){
+      var tid=String(this.getAttribute("data-tid"));
+      var idx=annualAllowedTeachers.indexOf(tid);
+      var wasAllowed=idx!==-1;
+      if(idx===-1)annualAllowedTeachers.push(tid);
+      else annualAllowedTeachers.splice(idx,1);
+      buildSidebar();
+      // If teacher is currently logged in and on annual page, redirect them
+      if(CU&&String(CU.id)===tid&&wasAllowed&&curPage==="annual"){
+        goPage("dashboard");
+      }
+      renderAnnualPrincipal(document.getElementById("page-annual"));
+      showToast("Access "+(wasAllowed?"removed":"granted")+".");
+    };
+  });
+
+  // File upload
+  var dz=document.getElementById("ar-dropzone");
+  var fi=document.getElementById("ar-file-inp");
+  if(dz&&fi){
+    dz.onclick=function(){fi.click();};
+    fi.onchange=function(e){handleAnnualFile(e);};
+  }
+
+  // Upload button
+  var upBtn=document.getElementById("ar-upload-btn");
+  if(upBtn)upBtn.onclick=doAnnualUpload;
+
+  // Class card — view all results for that class
+  document.querySelectorAll(".ar-cls-view-btn").forEach(function(btn){
+    btn.onclick=function(e){e.stopPropagation();openAnnualClassModal(this.getAttribute("data-cls"));};
+  });
+  document.querySelectorAll(".ar-cls-card").forEach(function(card){
+    card.onclick=function(){openAnnualClassModal(this.getAttribute("data-cls"));};
+  });
+
+  // Delete class results (principal only)
+  if(isPrincipal){
+    document.querySelectorAll(".ar-cls-del-btn").forEach(function(btn){
+      btn.onclick=function(e){
+        e.stopPropagation();
+        var cls=this.getAttribute("data-cls");
+        askConfirm("Delete ALL annual results for "+cls+"?\nThis will remove all exams for this class.",function(){
+          annualResults=annualResults.filter(function(x){return x.cls!==cls;});
+          showToast("Annual results for "+cls+" deleted.");
+          setupAnnualPage();
+        });
+      };
+    });
+  }
+}
+
+// ── File parser ───────────────────────────────────────────────
+var arParsedRows=null;
+function handleAnnualFile(e){
+  var file=e.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var data=new Uint8Array(ev.target.result);
+      var wb=XLSX.read(data,{type:"array"});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+
+      // Find ALL header rows (one per section)
+      var headerRows=[];
+      for(var i=0;i<rows.length;i++){
+        var c3=String(rows[i][3]||"").trim().toLowerCase();
+        var c2=String(rows[i][2]||"").replace(/\s+/g," ").trim().toLowerCase();
+        if((c3==="student name"||c3==="name")&&c2.indexOf("roll")!==-1) headerRows.push(i);
+      }
+      if(!headerRows.length){showToast("Could not detect Oxbridge format.");return;}
+
+      // Parse each section separately
+      arParsedRows={}; // keyed by class label
+      headerRows.forEach(function(headerRowIdx,secIdx){
+        var headerRow=rows[headerRowIdx];
+        var totalRow=rows[headerRowIdx+1];
+        var subjCols=[];
+        for(var j=4;j<headerRow.length;j++){
+          var h=String(headerRow[j]||"").trim();
+          if(!h||["remarks","total","obtained","%age","grade","attendance"].indexOf(h.toLowerCase())!==-1)break;
+          subjCols.push({name:h,col:j,total:parseFloat(totalRow[j])||100});
+        }
+        // Detect class/section from rows above header
+        var curCls="",curSec="";
+        var searchFrom=secIdx>0?headerRows[secIdx-1]:0;
+        for(var i=searchFrom;i<headerRowIdx;i++){
+          var r=rows[i];
+          var c0=String(r[0]||"").trim().toLowerCase();
+          if(c0==="class")curCls="Class "+String(r[2]||"").trim();
+          if(c0==="section:")curSec=String(r[2]||"").trim();
+        }
+        var clsLabel=curCls+(curSec?" ("+curSec+")":"");
+        if(!clsLabel)clsLabel="Section "+(secIdx+1);
+
+        // Parse student rows for this section
+        var nextHeader=secIdx+1<headerRows.length?headerRows[secIdx+1]:rows.length;
+        var parsed=[];
+        rows.slice(headerRowIdx+2,nextHeader).forEach(function(row){
+          var c0=String(row[0]||"").trim();
+          var c2=String(row[2]||"").replace(/\s+/g," ").trim().replace(/\.0$/,"");
+          var c3=String(row[3]||"").trim();
+          if(!c0||isNaN(parseFloat(c0))||parseFloat(c0)<=0||!c2||!c3)return;
+          var m2=c3.match(/^(.+?)\s+[SsDd]\/[Oo]\s+(.+)$/);
+          var stuName=m2?m2[1].trim():c3;
+          var dadName=m2?m2[2].trim():"";
+          var obtained=0,total=0;
+          var subjects={};
+          subjCols.forEach(function(sc){
+            var mRaw=String(row[sc.col]||"").trim();
+            var m=parseFloat(mRaw);
+            var isAb=(!mRaw||isNaN(m));
+            subjects[sc.name]={marks:isAb?0:m,total:sc.total,absent:isAb};
+            if(!isAb){obtained+=m;total+=sc.total;}
+            else total+=sc.total;
+          });
+          var pct=total>0?Math.round((obtained/total)*100):0;
+          parsed.push({rollNo:c2,name:stuName,fatherName:dadName,subjects:subjects,obtained:obtained,total:total,pct:pct,grade:calcGrade(obtained,total)});
+        });
+        // Sort by pct desc for position
+        parsed.sort(function(a,b){return b.pct-a.pct;});
+        parsed.forEach(function(p,i){p.position=i+1;});
+        arParsedRows[clsLabel]=parsed;
+      });
+
+      // Show preview
+      var sections=Object.keys(arParsedRows);
+      var totalStu=sections.reduce(function(acc,c){return acc+arParsedRows[c].length;},0);
+      var prev=document.getElementById("ar-preview");
+      if(prev){
+        var previewHtml='<div style="background:#dcfce7;border:2px solid #bbf7d0;border-radius:var(--r2);padding:10px 14px;font-size:13px;color:#15803d;font-weight:700;margin-bottom:8px">&#9989; '+totalStu+' students in '+sections.length+' class'+(sections.length>1?"es":"")+'</div>';
+        previewHtml+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+        sections.forEach(function(cls){
+          previewHtml+='<span style="background:var(--soft);border:2px solid var(--border);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;color:var(--pri)">&#127979; '+esc(cls)+': '+arParsedRows[cls].length+' students</span>';
+        });
+        previewHtml+='</div>';
+        prev.innerHTML=previewHtml;
+      }
+      var upBtn=document.getElementById("ar-upload-btn");
+      if(upBtn)upBtn.style.display="block";
+    }catch(err){showToast("Error: "+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function doAnnualUpload(){
+  if(!arParsedRows||!Object.keys(arParsedRows).length){showToast("Please upload a file first.");return;}
+  var testName=document.getElementById("ar-test-name").value.trim();
+  var session=document.getElementById("ar-session").value.trim();
+  if(!testName){showToast("Please enter exam name.");return;}
+  if(!session){showToast("Please enter session e.g. 2025-2026");return;}
+
+  var sections=Object.keys(arParsedRows);
+  var added=0;
+  sections.forEach(function(cls){
+    var parsed=arParsedRows[cls];
+    if(!parsed||!parsed.length)return;
+    // Register/update students from annual results
+    parsed.forEach(function(r){
+      var stu=users.find(function(u){return u.role==="student"&&u.rollNo===r.rollNo;});
+      if(!stu){
+        // Auto-register student
+        users.push({id:uid(),name:r.name,role:"student",username:r.rollNo,
+          password:r.rollNo,cls:cls,rollNo:r.rollNo,fatherName:r.fatherName||""});
+      } else {
+        if(r.fatherName)stu.fatherName=r.fatherName;
+      }
+      ensureClass(cls);
+    });
+    annualResults.push({
+      id:uid(),testName:testName,session:session,cls:cls,
+      uploadedBy:String(CU.id),uploadedByName:CU.name,
+      date:todayStr(),results:parsed
+    });
+    added++;
+  });
+  arParsedRows=null;
+  showToast(added+" class result"+(added>1?"s":"")+" uploaded!");
+  buildClassDrops();
+  setupAnnualPage();
+}
+
+// ── View modal ────────────────────────────────────────────────
+function openAnnualClassModal(cls){
+  var clsItems=annualResults.filter(function(ar){return ar.cls===cls;});
+  if(!clsItems.length)return;
+
+  var canEdit=(CU&&CU.role==="principal");
+  var html='<div style="background:linear-gradient(135deg,var(--pri),var(--pri2));border-radius:var(--r);padding:16px 20px;color:#fff;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
+  html+='<div><div style="font-family:Georgia,serif;font-size:20px;font-weight:700">&#127941; '+esc(cls)+'</div>';
+  html+='<div style="font-size:12px;opacity:.8;margin-top:3px">'+clsItems.length+' exam'+(clsItems.length>1?"s":"")+' &bull; Session: '+esc(clsItems[0].session)+'</div></div>';
+  if(canEdit){
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    clsItems.forEach(function(ar){
+      html+='<button class="btn btn-sm ar-edit-result-btn" data-arid="'+ar.id+'" style="background:rgba(255,255,255,.2);color:#fff;border:2px solid rgba(255,255,255,.5)">&#9999; Edit</button>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+
+  // Tabs for each exam
+  if(clsItems.length>1){
+    html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">';
+    clsItems.forEach(function(ar,i){
+      html+='<button class="btn '+(i===0?"btn-primary":"btn-ghost")+' btn-sm ar-exam-tab" data-arid="'+ar.id+'">'+esc(ar.testName)+' ('+esc(ar.session)+')</button>';
+    });
+    html+='</div>';
+  }
+  html+='<div id="ar-class-modal-body">';
+  html+=buildAnnualTable(clsItems[0]);
+  html+='</div>';
+
+  document.getElementById("annual-modal-body").innerHTML=html;
+
+  // Edit handlers
+  document.querySelectorAll(".ar-edit-result-btn").forEach(function(btn){
+    btn.onclick=function(e){e.stopPropagation();openAnnualEditModal(this.getAttribute("data-arid"));};
+  });
+  // Tab switching
+  document.querySelectorAll(".ar-exam-tab").forEach(function(btn){
+    btn.onclick=function(){
+      document.querySelectorAll(".ar-exam-tab").forEach(function(b){b.className=b.className.replace("btn-primary","btn-ghost");});
+      this.className=this.className.replace("btn-ghost","btn-primary");
+      var ar=annualResults.find(function(x){return String(x.id)===String(this.getAttribute("data-arid"));}.bind(this));
+      if(ar) document.getElementById("ar-class-modal-body").innerHTML=buildAnnualTable(ar);
+    };
+  });
+
+  openModal("modal-annual-view");
+}
+
+function buildAnnualTable(ar){
+  if(!ar)return"";
+  var subjects=ar.results.length>0?Object.keys(ar.results[0].subjects):[];
+  var passed=ar.results.filter(function(r){return r.grade!=="F";}).length;
+  var failed=ar.results.length-passed;
+  var topStu=ar.results[0];
+
+  // Stats
+  var html='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">';
+  [["&#127891;",ar.results.length,"Total","#5c6ef8"],["&#9989;",passed,"Passed","#15803d"],
+   ["&#10060;",failed,"Failed","#b91c1c"],["&#128203;",subjects.length,"Subjects","#7c3aed"],
+   ["&#127942;",(topStu?topStu.pct+"%":"—"),"Top","#c2410c"]
+  ].forEach(function(s){
+    html+='<div style="background:#fff;border:2px solid var(--border);border-radius:10px;padding:10px;text-align:center">';
+    html+='<div style="font-size:20px">'+s[0]+'</div>';
+    html+='<div style="font-size:18px;font-weight:800;color:'+s[3]+'">'+s[1]+'</div>';
+    html+='<div style="font-size:10px;color:var(--txt3);font-weight:700;text-transform:uppercase">'+s[2]+'</div>';
+    html+='</div>';
+  });
+  html+='</div>';
+
+  // Table wrapper — full width, horizontal scroll
+  html+='<div style="overflow-x:auto;border-radius:10px;border:2px solid #c7d2fe">';
+  html+='<table style="border-collapse:collapse;white-space:nowrap;font-size:13px;width:100%">';
+
+  // Header
+  html+='<thead><tr style="background:#4338ca;color:#fff">';
+  html+='<th style="padding:10px 12px;font-size:12px;font-weight:800;text-align:center;border-right:1px solid rgba(255,255,255,.2)">POS</th>';
+  html+='<th style="padding:10px 16px;font-size:12px;font-weight:800;text-align:left;min-width:160px;border-right:1px solid rgba(255,255,255,.2)">STUDENT</th>';
+  html+='<th style="padding:10px 12px;font-size:12px;font-weight:800;text-align:center;border-right:1px solid rgba(255,255,255,.2)">ROLL NO</th>';
+  subjects.forEach(function(s){
+    html+='<th style="padding:10px 12px;font-size:12px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.2)">'+esc(s)+'</th>';
+  });
+  html+='<th style="padding:10px 12px;font-size:12px;font-weight:800;text-align:center;background:#3730a3;border-left:2px solid rgba(255,255,255,.3)">OBTAINED</th>';
+  html+='<th style="padding:10px 12px;font-size:12px;font-weight:800;text-align:center;background:#3730a3">PERCENT</th>';
+  html+='<th style="padding:10px 12px;font-size:12px;font-weight:800;text-align:center;background:#3730a3">GRADE</th>';
+  html+='</tr></thead>';
+
+  html+='<tbody>';
+  ar.results.forEach(function(r,i){
+    var mc=r.pct<50?"#dc2626":r.pct<70?"#d97706":"#15803d";
+    var bg=i%2===0?"#fff":"#f5f3ff";
+    var medal=r.position===1?"&#129351;":r.position===2?"&#129352;":r.position===3?"&#129353;":"";
+    html+='<tr style="background:'+bg+'">';
+
+    html+='<td style="padding:12px 12px;border-bottom:1px solid #e0e7ff;text-align:center;border-right:1px solid #e0e7ff">';
+    html+=medal?'<span style="font-size:20px">'+medal+'</span>'
+               :'<b style="color:#6366f1;font-size:14px">'+r.position+'</b>';
+    html+='</td>';
+
+    html+='<td style="padding:12px 16px;border-bottom:1px solid #e0e7ff;border-right:1px solid #e0e7ff;min-width:160px">';
+    html+='<div style="font-weight:700;color:#1e1b4b;font-size:13px">'+esc(r.name)+'</div>';
+    if(r.fatherName)html+='<div style="font-size:11px;color:#6b7280">S/O '+esc(r.fatherName)+'</div>';
+    html+='</td>';
+
+    html+='<td style="padding:12px 12px;border-bottom:1px solid #e0e7ff;text-align:center;font-family:monospace;font-weight:700;color:#4f46e5;font-size:13px;border-right:1px solid #e0e7ff">'+esc(r.rollNo)+'</td>';
+
+    subjects.forEach(function(s){
+      var sd=r.subjects[s]||{};
+      var sp=sd.total>0?Math.round((sd.marks/sd.total)*100):0;
+      var tc=sd.absent?"#92400e":sp<50?"#dc2626":sp<70?"#d97706":"#374151";
+      html+='<td style="padding:12px 12px;border-bottom:1px solid #e0e7ff;border-right:1px solid #e0e7ff;text-align:center;'+(sd.absent?"background:#fef9c3;":"")+'">';
+      if(sd.absent){
+        html+='<span style="background:#fef3c7;color:#92400e;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:800">AB</span>';
+      } else {
+        html+='<b style="color:'+tc+';font-size:13px">'+sd.marks+'</b>';
+        html+='<span style="color:#9ca3af;font-size:11px">/'+sd.total+'</span>';
+      }
+      html+='</td>';
+    });
+
+    html+='<td style="padding:12px 14px;border-bottom:1px solid #e0e7ff;text-align:center;background:#eef2ff;font-weight:800;color:'+mc+';font-size:14px;border-left:2px solid #c7d2fe">';
+    html+='<b>'+r.obtained+'</b><span style="color:#9ca3af;font-size:11px;font-weight:400">/'+r.total+'</span></td>';
+
+    html+='<td style="padding:12px 14px;border-bottom:1px solid #e0e7ff;text-align:center;background:#eef2ff;font-weight:800;color:'+mc+';font-size:16px">';
+    html+=r.pct+'%</td>';
+
+    html+='<td style="padding:12px 14px;border-bottom:1px solid #e0e7ff;text-align:center;background:#eef2ff">';
+    html+='<span class="grade '+gradeCls(r.grade)+'" style="font-size:13px;padding:5px 14px">'+r.grade+'</span></td>';
+
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function openAnnualEditModal(arid){
+  var ar=annualResults.find(function(x){return String(x.id)===String(arid);});
+  if(!ar)return;
+  var subjects=ar.results.length>0?Object.keys(ar.results[0].subjects):[];
+  var html='<div style="font-size:15px;font-weight:800;color:var(--txt);margin-bottom:4px">&#9999; Edit Results: '+esc(ar.testName)+'</div>';
+  html+='<div style="font-size:12px;color:var(--txt3);margin-bottom:14px">'+esc(ar.cls)+' &mdash; '+esc(ar.session)+'</div>';
+  html+='<div style="overflow-x:auto;border:2px solid var(--border);border-radius:var(--r2);margin-bottom:14px">';
+  html+='<table style="border-collapse:collapse;font-size:12px;width:100%;white-space:nowrap">';
+  html+='<thead><tr style="background:#f8f9ff">';
+  html+='<th style="padding:9px 14px;border-bottom:2px solid var(--border);text-align:left;color:var(--pri);min-width:160px">STUDENT</th>';
+  html+='<th style="padding:9px 10px;border-bottom:2px solid var(--border);text-align:center;color:var(--pri)">ROLL</th>';
+  subjects.forEach(function(s){
+    html+='<th style="padding:9px 10px;border-bottom:2px solid var(--border);text-align:center;color:var(--pri)">'+esc(s)+'</th>';
+  });
+  html+='</tr></thead><tbody>';
+  ar.results.forEach(function(r,ri){
+    html+='<tr style="background:'+(ri%2===0?"#fff":"#fafbff")+'">';
+    html+='<td style="padding:9px 14px;border-bottom:1px solid var(--s2);font-weight:700">'+esc(r.name)+(r.fatherName?'<div style="font-size:10px;color:var(--txt3)">S/O '+esc(r.fatherName)+'</div>':'')+'</td>';
+    html+='<td style="padding:9px 10px;border-bottom:1px solid var(--s2);text-align:center;font-family:monospace;color:var(--pri)">'+esc(r.rollNo)+'</td>';
+    subjects.forEach(function(s){
+      var sd=r.subjects[s]||{marks:0,total:100,absent:false};
+      html+='<td style="padding:6px 8px;border-bottom:1px solid var(--s2);text-align:center;min-width:90px">';
+      html+='<div style="display:flex;align-items:center;gap:4px;justify-content:center">';
+      html+='<input type="number" class="ar-edit-inp" data-arid="'+arid+'" data-ri="'+ri+'" data-subj="'+esc(s)+'" data-total="'+sd.total+'" value="'+(sd.absent?"":sd.marks)+'" placeholder="'+(sd.absent?"AB":"")+'" min="0" max="'+sd.total+'" style="width:52px;padding:4px;border:2px solid var(--border);border-radius:6px;text-align:center;font-size:12px;font-weight:700;'+(sd.absent?"background:#fef9c3;":"")+'"/>';
+      html+='<span style="font-size:10px;color:var(--txt3)">/'+sd.total+'</span>';
+      html+='</div></td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="font-size:11px;color:var(--txt3);margin-bottom:10px">Tip: Leave a cell empty to mark as Absent (AB)</div>';
+  html+='<button class="btn btn-primary" id="ar-save-btn" data-arid="'+arid+'" style="width:100%;padding:12px;font-size:14px">&#9989; Save Changes</button>';
+  document.getElementById("annual-modal-body").innerHTML=html;
+
+  document.getElementById("ar-save-btn").onclick=function(){
+    var aid=this.getAttribute("data-arid");
+    var target=annualResults.find(function(x){return String(x.id)===String(aid);});
+    if(!target)return;
+    document.querySelectorAll(".ar-edit-inp[data-arid='"+aid+"']").forEach(function(inp){
+      var ri=parseInt(inp.getAttribute("data-ri"));
+      var subj=inp.getAttribute("data-subj");
+      var total=parseFloat(inp.getAttribute("data-total"))||100;
+      var val=inp.value.trim();
+      if(!target.results[ri]||!target.results[ri].subjects[subj])return;
+      if(val===""||isNaN(parseFloat(val))){
+        target.results[ri].subjects[subj].absent=true;
+        target.results[ri].subjects[subj].marks=0;
+      } else {
+        target.results[ri].subjects[subj].absent=false;
+        target.results[ri].subjects[subj].marks=parseFloat(val);
+      }
+    });
+    // Recalculate
+    target.results.forEach(function(r){
+      var obtained=0,total=0;
+      Object.keys(r.subjects).forEach(function(s){
+        var sd=r.subjects[s];total+=sd.total;
+        if(!sd.absent)obtained+=sd.marks;
+      });
+      r.obtained=obtained;r.total=total;
+      r.pct=total>0?Math.round((obtained/total)*100):0;
+      r.grade=calcGrade(obtained,total);
+    });
+    target.results.sort(function(a,b){return b.pct-a.pct;});
+    target.results.forEach(function(r,i){r.position=i+1;});
+    showToast("Results saved!");
+    openAnnualClassModal(target.cls);
+  };
+}
+
+function openAnnualViewModal(arid){
+  var ar=annualResults.find(function(x){return String(x.id)===String(arid);});
+  if(!ar)return;
+  var subjects=ar.results.length>0?Object.keys(ar.results[0].subjects):[];
+  var html='<div style="font-family:Georgia,serif;font-size:18px;color:var(--txt);margin-bottom:4px">'+esc(ar.testName)+'</div>';
+  html+='<div style="font-size:12px;color:var(--txt3);margin-bottom:16px">'+esc(ar.cls)+' &bull; Session: '+esc(ar.session)+' &bull; '+ar.results.length+' students</div>';
+  html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html+='<thead><tr style="background:#f8f9ff">';
+  html+='<th style="padding:8px 10px;border:2px solid var(--border);color:var(--pri);text-align:left;white-space:nowrap">Pos</th>';
+  html+='<th style="padding:8px 10px;border:2px solid var(--border);color:var(--pri);text-align:left">Student</th>';
+  html+='<th style="padding:8px 10px;border:2px solid var(--border);color:var(--pri);text-align:left">Roll</th>';
+  subjects.forEach(function(s){html+='<th style="padding:8px 10px;border:2px solid var(--border);color:var(--pri);white-space:nowrap">'+esc(s)+'</th>';});
+  html+='<th style="padding:8px 10px;border:2px solid var(--border);color:var(--pri);background:#e8ecff">Obtained</th>';
+  html+='<th style="padding:8px 10px;border:2px solid var(--border);color:var(--pri);background:#e8ecff">%</th>';
+  html+='<th style="padding:8px 10px;border:2px solid var(--border);color:var(--pri);background:#e8ecff">Grade</th>';
+  html+='</tr></thead><tbody>';
+  ar.results.forEach(function(r){
+    var mc=r.pct<50?"#b91c1c":r.pct<70?"#c2410c":"var(--pri)";
+    html+='<tr><td style="padding:8px 10px;border:2px solid var(--s2);font-weight:800;color:var(--pri);text-align:center">'+r.position+'</td>';
+    html+='<td style="padding:8px 10px;border:2px solid var(--s2);font-weight:700">'+esc(r.name)+(r.fatherName?'<div style="font-size:10px;color:var(--txt3)">S/O '+esc(r.fatherName)+'</div>':'')+'</td>';
+    html+='<td style="padding:8px 10px;border:2px solid var(--s2);font-family:monospace;color:var(--pri)">'+esc(r.rollNo)+'</td>';
+    subjects.forEach(function(s){
+      var sd=r.subjects[s]||{};
+      html+='<td style="padding:8px 10px;border:2px solid var(--s2);text-align:center;'+(sd.absent?"background:#fffbeb":"")+'"><strong>'+(sd.absent?'<span style="color:#92400e">AB</span>':sd.marks)+'</strong>'+(sd.absent?"":"<span style='color:var(--txt3);font-size:10px'>/"+sd.total+"</span>")+'</td>';
+    });
+    html+='<td style="padding:8px 10px;border:2px solid var(--s2);text-align:center;font-weight:800;color:'+mc+';background:#f0f2ff">'+r.obtained+'/'+r.total+'</td>';
+    html+='<td style="padding:8px 10px;border:2px solid var(--s2);text-align:center;font-weight:800;color:'+mc+';background:#f0f2ff">'+r.pct+'%</td>';
+    html+='<td style="padding:8px 10px;border:2px solid var(--s2);text-align:center;background:#f0f2ff"><span class="grade '+gradeCls(r.grade)+'">'+r.grade+'</span></td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  document.getElementById("annual-modal-body").innerHTML=html;
+  openModal("modal-annual-view");
+}
+function renderBackupPage(){
+  var page=document.getElementById("page-backup");
+  if(!page)return;
+  var stuCount=users.filter(function(u){return u.role==="student";}).length;
+  var teaCount=users.filter(function(u){return u.role==="teacher";}).length;
+  var lastBackup=localStorage.getItem("sms_last_backup")||"Never";
+  var html='<div style="max-width:680px;margin:0 auto">';
+  // Stats
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:22px">';
+  [["\u{1F393}",stuCount,"Students"],["\u{1F468}\u200D\u{1F3EB}",teaCount,"Teachers"],["\u{1F4CB}",tests.length,"Tests"],["\u{1F4C8}",results.length,"Results"],["\u{1F4D3}",diary.length,"Diary"],["\u{1F4C5}",calEvents.length,"Events"]].forEach(function(s){
+    html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:14px;text-align:center;box-shadow:var(--sh)"><div style="font-size:22px">'+s[0]+'</div><div style="font-size:20px;font-weight:800;color:var(--pri);margin:4px 0">'+s[1]+'</div><div style="font-size:11px;color:var(--txt3);font-weight:700">'+s[2]+'</div></div>';
+  });
+  html+='</div>';
+  // Export card
+  html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:14px;box-shadow:var(--sh)">';
+  html+='<div style="font-family:Georgia,serif;font-size:17px;color:var(--pri);margin-bottom:6px">&#128190; Export Backup</div>';
+  html+='<div style="font-size:13px;color:var(--txt2);margin-bottom:4px;line-height:1.6">Downloads all data as a <strong>.json</strong> file. Save it in Google Drive, USB, or WhatsApp.</div>';
+  html+='<div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Last backup: <strong style="color:var(--pri)">'+esc(lastBackup)+'</strong></div>';
+  html+='<button class="btn btn-primary" id="btn-export-backup" style="width:100%;padding:14px;font-size:15px">&#128190; Download Backup File</button>';
+  html+='</div>';
+  // Restore card
+  html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:14px;box-shadow:var(--sh)">';
+  html+='<div style="font-family:Georgia,serif;font-size:17px;color:var(--pri);margin-bottom:6px">&#128257; Restore from Backup</div>';
+  html+='<div style="font-size:13px;color:var(--txt2);margin-bottom:6px;line-height:1.6">Select a <strong>.json</strong> backup file to restore.</div>';
+  html+='<div style="background:#fee2e2;border:2px solid #fecaca;border-radius:var(--r2);padding:10px 14px;font-size:12px;color:#b91c1c;font-weight:700;margin-bottom:14px">&#9888; Warning: This will replace ALL current data with the backup.</div>';
+  html+='<div style="background:var(--soft);border:2px dashed #c5cdf5;border-radius:var(--r2);padding:24px;text-align:center;cursor:pointer" id="backup-dropzone">';
+  html+='<div style="font-size:36px;margin-bottom:8px">&#128193;</div>';
+  html+='<div style="font-weight:700;color:var(--pri)">Click to select backup .json file</div>';
+  html+='<input type="file" id="backup-file-inp" accept=".json" style="display:none"/>';
+  html+='</div>';
+  html+='<div id="backup-restore-status" style="font-size:13px;margin-top:10px;min-height:20px"></div>';
+  html+='</div>';
+  // Tips
+  html+='<div style="background:linear-gradient(135deg,var(--soft),#e8ecff);border:2px solid var(--border);border-radius:var(--r);padding:18px 22px">';
+  html+='<div style="font-size:13px;font-weight:800;color:var(--pri);margin-bottom:8px">&#128161; Backup Tips</div>';
+  html+='<div style="font-size:13px;color:var(--txt2);line-height:2">&#9989; Export before importing new results<br>&#9989; Export at end of every week<br>&#9989; Save to Google Drive or email to yourself<br>&#9989; Backup includes all users, results, diary and calendar</div>';
+  html+='</div>';
+  html+='</div>';
+  page.innerHTML=html;
+  document.getElementById("btn-export-backup").onclick=exportBackup;
+  var dz=document.getElementById("backup-dropzone");
+  var fi=document.getElementById("backup-file-inp");
+  dz.onclick=function(){fi.click();};
+  fi.onchange=function(e){var f=e.target.files[0];if(f)importBackup(f);};
+}
+
+function exportBackup(){
+  var backup={version:1,exportedAt:new Date().toISOString(),exportedBy:CU.name,
+    data:{users:users,classes:classes,diary:diary,tests:tests,results:results,calEvents:calEvents,recycleBin:recycleBin,annualResults:annualResults,annualSectionEnabled:annualSectionEnabled,annualAllowedTeachers:annualAllowedTeachers}};
+  var blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  var d=new Date();
+  var ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  a.href=url;a.download="OxbridgeSMS_Backup_"+ds+".json";a.click();
+  URL.revokeObjectURL(url);
+  localStorage.setItem("sms_last_backup",d.toLocaleString("en-PK"));
+  showToast("Backup downloaded!");
+  renderBackupPage();
+}
+
+function importBackup(file){
+  var status=document.getElementById("backup-restore-status");
+  if(status)status.textContent="Reading file...";
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var backup=JSON.parse(ev.target.result);
+      if(!backup.data||!backup.version){
+        if(status)status.innerHTML='<span style="color:#b91c1c">&#10060; Invalid backup file.</span>';return;
+      }
+      var d=backup.data;
+      var dateStr=new Date(backup.exportedAt).toLocaleString("en-PK");
+      askConfirm("Restore backup from "+dateStr+"?\n\nThis will replace ALL current data:\n"+
+        (d.users?d.users.length:0)+" users, "+(d.tests?d.tests.length:0)+" tests, "+
+        (d.results?d.results.length:0)+" results, "+(d.diary?d.diary.length:0)+" diary entries.",
+        function(){
+          if(d.users)users=d.users;
+          if(d.classes)classes=d.classes;
+          if(d.diary)diary=d.diary;
+          if(d.tests)tests=d.tests;
+          if(d.results)results=d.results;
+          if(d.calEvents)calEvents=d.calEvents;
+          if(d.recycleBin)recycleBin=d.recycleBin;
+          if(d.annualResults)annualResults=d.annualResults;
+          if(typeof d.annualSectionEnabled!=="undefined")annualSectionEnabled=d.annualSectionEnabled;
+          if(d.annualAllowedTeachers)annualAllowedTeachers=d.annualAllowedTeachers;
+          buildQuickBtns();buildClassDrops();
+          showToast("Backup restored!");
+          renderBackupPage();
+          if(status)status.innerHTML='<span style="color:#15803d">&#9989; Restored from '+dateStr+'</span>';
+        }
+      );
+    }catch(e){
+      if(status)status.innerHTML='<span style="color:#b91c1c">&#10060; Error: '+e.message+'</span>';
+    }
+  };
+  reader.readAsText(file);
+}
+
 function renderBin(){
   var wrap=document.getElementById("bin-content");if(!wrap)return;
   var allTypes=["all","student","teacher","diary","result","test","event"];
@@ -3295,7 +4170,11 @@ function renderClassReport(cls,wrap,filterTestId){
   wrap.innerHTML=html;
   document.querySelectorAll(".cls-group-header[data-cgkey]").forEach(function(hdr){hdr.onclick=function(e){if(e.target.classList.contains("stu-profile-btn")||e.target.closest(".stu-profile-btn"))return;toggleGroup(this.getAttribute("data-cgkey"));renderClassReport(crCurrentCls,document.getElementById("cr-report-area"),crCurrentTestId==="all"?null:parseInt(crCurrentTestId));};});
   document.querySelectorAll(".stu-profile-btn").forEach(function(btn){btn.onclick=function(e){e.stopPropagation();openStudentProfile(this.getAttribute("data-uid"));};});
+
 }
+
+
+
 </script>
 </body>
 </html>
