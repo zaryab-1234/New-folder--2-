@@ -463,6 +463,144 @@ table     { min-width: 100%; border-collapse: collapse; }
   .stat-num         { font-size: 34px; }
   .stat-icon        { font-size: 30px; }
 }
+
+/* ══ NEW PAGES MOBILE ═══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Annual Results ─────────────────────────────────── */
+  /* Annual modal: full screen sheet on mobile */
+  .modal-box.fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    position: fixed;
+    inset: 0;
+    margin: 0;
+  }
+  #modal-annual-view { align-items: stretch; padding: 0; }
+
+  /* Annual class cards — single column */
+  #page-annual [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Annual upload form grid — single column */
+  #page-annual [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Annual teacher list — stack button */
+  .annual-teacher-toggle {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+
+  /* ── Backup page ─────────────────────────────────────── */
+  #page-backup [style*="grid-template-columns: repeat(auto-fill"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* ── Dashboard search card ───────────────────────────── */
+  .dash-weekly-content table,
+  .dash-annual-content table {
+    font-size: 11px;
+  }
+  /* Tab switcher full width */
+  .dash-res-tab {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  /* ── Classes page cards ──────────────────────────────── */
+  #page-classes [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Import modal test chips ─────────────────────────── */
+  .imp-test-chip {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+
+  /* ── Test selector class groups ──────────────────────── */
+  #staff-test-selector {
+    max-height: 160px;
+    overflow-y: auto;
+  }
+
+  /* ── Results matrix table ────────────────────────────── */
+  #staff-results-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Student profile modal ───────────────────────────── */
+  #modal-stu-profile .modal-box {
+    border-radius: 16px 16px 0 0;
+  }
+
+  /* ── Manage Users table ──────────────────────────────── */
+  #users-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Class report chips ──────────────────────────────── */
+  .cls-filter-chip {
+    font-size: 11px;
+    padding: 7px 10px;
+    min-width: 70px;
+  }
+
+  /* ── Calendar nav ────────────────────────────────────── */
+  .cal-nav {
+    font-size: 13px;
+    gap: 6px;
+  }
+}
+
+/* ══ SMALL PHONE ADDITIONS 420px ═════════════════════════════════════ */
+@media (max-width: 420px) {
+
+  /* Annual stats grid — 2 cols */
+  #page-annual [style*="grid-template-columns: repeat(5"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Backup stats grid — 2 cols */
+  #page-backup [style*="grid-template-columns"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Test chip very small */
+  .test-chip {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+
+  /* Import modal steps */
+  .drop-zone {
+    padding: 16px 10px;
+    font-size: 13px;
+  }
+
+  /* Tab switcher stacks */
+  .dash-res-tab {
+    font-size: 11px;
+    padding: 7px 8px;
+  }
+
+  /* Annual table inside modal — very small font */
+  #annual-modal-body table {
+    font-size: 11px;
+  }
+  #annual-modal-body th,
+  #annual-modal-body td {
+    padding: 6px 7px !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1420,6 +1558,7 @@ function dashboardSearchStudent(q){
         html+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">';
         html+='<div><div style="font-weight:800;color:var(--txt)">'+esc(ar.testName)+'</div>';
         html+='<div style="font-size:11px;color:var(--txt3)">'+esc(ar.cls)+' &bull; Session: '+esc(ar.session)+'</div></div>';
+        html+='<button class="btn btn-ghost btn-sm dash-annual-export-btn" data-arid="'+ar.id+'" data-roll="'+esc(u.rollNo)+'">&#11015; Export</button>';
         html+='<div style="display:flex;align-items:center;gap:8px">';
         html+='<span style="font-size:20px;font-weight:800;color:'+mc+'">'+myRow.pct+'%</span>';
         html+='<span class="grade '+gradeCls(myRow.grade)+'">'+myRow.grade+'</span>';
@@ -1460,6 +1599,19 @@ function dashboardSearchStudent(q){
       openStudentProfile(this.getAttribute("data-uid"));
     };
   });
+  // Annual export buttons in dashboard search
+  document.querySelectorAll("#dash-search-results .dash-annual-export-btn").forEach(function(btn){
+    btn.onclick=function(){
+      var arid=this.getAttribute("data-arid");
+      var roll=this.getAttribute("data-roll");
+      var ar=annualResults.find(function(x){return String(x.id)===String(arid);});
+      if(!ar)return;
+      var myRow=ar.results.find(function(r){return r.rollNo===roll;});
+      if(!myRow)return;
+      exportSingleStudentAnnual(ar,myRow);
+    };
+  });
+
   // Weekly/Annual tab switcher
   document.querySelectorAll("#dash-search-results .dash-res-tab").forEach(function(btn){
     btn.onclick=function(){
@@ -1523,17 +1675,70 @@ function renderStudentDiary(){
   var today=todayStr();
   var lbl=new Date(today+"T00:00:00").toLocaleDateString("en-PK",{weekday:"long",day:"numeric",month:"long"});
   document.getElementById("student-today-label").textContent=lbl;
-  var sel=document.getElementById("student-diary-date").value||today;
-  var list=diary.filter(function(d){return d.cls===CU.cls&&d.date===sel;});
+  // Always default to today
+  var dateInp=document.getElementById("student-diary-date");
+  if(!dateInp.value) dateInp.value=today;
+  var sel=dateInp.value;
+  var stuCls=(CU.cls||"").trim().toLowerCase();
+  var list=diary.filter(function(d){
+    if(d.date!==sel)return false;
+    return (d.cls||"").trim().toLowerCase()===stuCls;
+  });
   list.sort(function(a,b){return a.subject.localeCompare(b.subject);});
   var wrap=document.getElementById("diary-student-list");
-  if(!list.length){wrap.innerHTML=emptyHTML("&#128211;",(sel===today)?"No diary entries for today yet. Check back later.":"No diary entries for the selected date.");return;}
+  if(!list.length){
+    wrap.innerHTML=emptyHTML("&#128211;",(sel===today)?"No diary entries for today yet. Check back later.":"No diary entries for "+sel+".")
+      +'<div style="background:var(--soft);border:2px solid var(--border);border-radius:var(--r2);padding:10px 16px;margin-top:12px;font-size:13px;color:var(--txt2)">&#127979; Your class: <strong>'+esc(CU.cls||"Not assigned")+'</strong></div>';
+    return;
+  }
   wrap.innerHTML=list.map(function(d){return diaryCardHTML(d,false);}).join("");
 }
 function diaryCardHTML(d,showAct){
   var dt=new Date(d.date+"T00:00:00"),day=dt.getDate(),mon=dt.toLocaleString("en",{month:"short"});
-  var acts=showAct?'<div class="d-acts"><button class="btn btn-ghost btn-sm" onclick="openDiaryModal('+d.id+')">&#9999;</button><button class="btn btn-danger btn-sm" onclick="askConfirm(\'Delete this diary entry?\',function(){delDiary('+d.id+')})">&#128465;</button></div>':"";
-  return'<div class="diary-card"><div class="d-date-box"><div class="d-day">'+day+'</div><div class="d-mon">'+mon+'</div></div><div class="d-body"><div class="d-top"><span class="d-subj">'+esc(d.subject)+'</span><span class="cls-pill">'+esc(d.cls)+'</span></div><div class="d-hw">&#128221; <strong>HW:</strong> '+esc(d.homework)+'</div>'+(d.notes?'<div class="d-notes">&#128161; '+esc(d.notes)+'</div>':'')+'<div class="d-by">By '+esc(d.teacherName)+' &mdash; '+d.date+'</div></div>'+acts+'</div>';
+  var isStudent=(CU&&CU.role==="student");
+
+  if(isStudent){
+    // Student view — large, easy to read card
+    return '<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)">'
+      // Subject header bar
+      +'<div style="background:linear-gradient(135deg,var(--pri),var(--pri2));padding:14px 20px;display:flex;align-items:center;gap:12px">'
+      +'<div style="background:rgba(255,255,255,.2);border-radius:10px;padding:8px 12px;text-align:center;min-width:52px;flex-shrink:0">'
+      +'<div style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fff;line-height:1">'+day+'</div>'
+      +'<div style="font-size:10px;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:1px;margin-top:2px;font-weight:700">'+mon+'</div>'
+      +'</div>'
+      +'<div style="flex:1">'
+      +'<div style="font-family:Georgia,serif;font-size:20px;font-weight:700;color:#fff">'+esc(d.subject)+'</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px">&#127979; '+esc(d.cls)+' &bull; By '+esc(d.teacherName)+'</div>'
+      +'</div>'
+      +'</div>'
+      // Homework section
+      +'<div style="padding:18px 20px;border-bottom:'+(d.notes?'2px solid var(--border)':'none')+'">'
+      +'<div style="font-size:11px;font-weight:800;color:var(--pri);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">&#128221; Homework</div>'
+      +'<div style="font-size:16px;font-weight:600;color:var(--txt);line-height:1.6">'+esc(d.homework)+'</div>'
+      +'</div>'
+      // Notes section (if exists)
+      +(d.notes?'<div style="padding:14px 20px;background:#fafbff">'
+        +'<div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">&#128161; Teacher Note</div>'
+        +'<div style="font-size:15px;font-weight:500;color:var(--txt2);line-height:1.6">'+esc(d.notes)+'</div>'
+        +'</div>':'')
+      +'</div>';
+  }
+
+  // Staff view — compact original style
+  var acts=showAct
+    ?'<div class="d-acts">'
+      +'<button class="btn btn-ghost btn-sm diary-edit-btn" data-did="'+d.id+'">&#9999;</button>'
+      +'<button class="btn btn-danger btn-sm diary-del-btn" data-did="'+d.id+'">&#128465;</button>'
+      +'</div>'
+    :"";
+  return '<div class="diary-card">'
+    +'<div class="d-date-box"><div class="d-day">'+day+'</div><div class="d-mon">'+mon+'</div></div>'
+    +'<div class="d-body">'
+    +'<div class="d-top"><span class="d-subj">'+esc(d.subject)+'</span><span class="cls-pill">'+esc(d.cls)+'</span></div>'
+    +'<div class="d-hw">&#128221; <strong>HW:</strong> '+esc(d.homework)+'</div>'
+    +(d.notes?'<div class="d-notes">&#128161; '+esc(d.notes)+'</div>':'')
+    +'<div class="d-by">By '+esc(d.teacherName)+' &mdash; '+d.date+'</div>'
+    +'</div>'+acts+'</div>';
 }
 function openDiaryModal(id){
   editDiaryId=id;document.getElementById("diary-modal-title").textContent=id?"Edit Diary Entry":"Upload Diary Entry";buildClassDrops();
@@ -1963,7 +2168,59 @@ function buildResultMatrix(rollNo, studentName, studentCls){
     html+='</span>';
   }
   html+='</div>';
-  return html;
+  
+  // ── Annual Results section ────────────────────────────────
+  var myAnnualRes=annualResults.filter(function(ar){
+    return ar.results.some(function(r){return r.rollNo===rollNo||r.name.toLowerCase()===studentName.toLowerCase();});
+  });
+  if(myAnnualRes.length){
+    html+='<div style="margin-top:22px;border-top:2px solid var(--border);padding-top:18px">';
+    html+='<div style="font-size:13px;font-weight:800;color:var(--pri);margin-bottom:14px">&#127941; Annual Results</div>';
+    myAnnualRes.forEach(function(ar){
+      var myRow=ar.results.find(function(r){return r.rollNo===rollNo||r.name.toLowerCase()===studentName.toLowerCase();});
+      if(!myRow)return;
+      var mc=myRow.pct<50?"#dc2626":myRow.pct<70?"#d97706":"#15803d";
+      var subjects=Object.keys(myRow.subjects||{});
+      html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px;box-shadow:var(--sh)">';
+      // Header
+      html+='<div style="background:linear-gradient(135deg,var(--pri),var(--pri2));padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+      html+='<div><div style="font-size:15px;font-weight:800;color:#fff">'+esc(ar.testName)+'</div>';
+      html+='<div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px">'+esc(ar.cls)+' &bull; Session: '+esc(ar.session)+'</div></div>';
+      html+='<div style="background:rgba(255,255,255,.2);border-radius:10px;padding:8px 14px;text-align:center">';
+      html+='<div style="font-size:24px;font-weight:800;color:#fff">'+myRow.pct+'%</div>';
+      html+='<span class="grade '+gradeCls(myRow.grade)+'" style="font-size:11px">'+myRow.grade+'</span>';
+      if(myRow.position)html+='<div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px">&#127942; Pos: '+myRow.position+'</div>';
+      html+='</div></div>';
+      // Status bar
+      var passed=myRow.grade!=="F";
+      html+='<div style="padding:8px 18px;background:'+(passed?"#dcfce7":"#fee2e2")+';border-bottom:2px solid var(--border);font-size:12px;font-weight:800;color:'+(passed?"#15803d":"#b91c1c")+'">';
+      html+=(passed?"&#9989; PASSED":"&#10060; FAILED");
+      html+=' &bull; '+myRow.obtained+'/'+myRow.total+' marks';
+      html+='</div>';
+      // Subject table
+      if(subjects.length){
+        html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+        html+='<thead><tr style="background:#f8f9ff"><th style="padding:8px 14px;text-align:left;color:var(--pri);font-size:11px;border-bottom:2px solid var(--border)">SUBJECT</th><th style="padding:8px 10px;text-align:center;color:var(--pri);font-size:11px;border-bottom:2px solid var(--border)">MARKS</th><th style="padding:8px 10px;text-align:center;color:var(--pri);font-size:11px;border-bottom:2px solid var(--border);background:#f0f2ff">%</th><th style="padding:8px 10px;text-align:center;color:var(--pri);font-size:11px;border-bottom:2px solid var(--border);background:#f0f2ff">GRADE</th></tr></thead><tbody>';
+        subjects.forEach(function(s,i){
+          var sd=myRow.subjects[s]||{};
+          var sp=sd.total>0?Math.round((sd.marks/sd.total)*100):0;
+          var sg=sd.absent?"AB":calcGrade(sd.marks,sd.total);
+          var tc=sd.absent?"#92400e":sp<50?"#dc2626":sp<70?"#d97706":"var(--txt)";
+          html+='<tr style="background:'+(i%2===0?"#fff":"#fafbff")+'">';
+          html+='<td style="padding:8px 14px;border-bottom:1px solid #f0f2ff;font-weight:700">'+esc(s)+'</td>';
+          html+='<td style="padding:8px 10px;border-bottom:1px solid #f0f2ff;text-align:center;font-weight:700;color:'+tc+'">'+(sd.absent?"AB":sd.marks+"/"+sd.total)+'</td>';
+          html+='<td style="padding:8px 10px;border-bottom:1px solid #f0f2ff;text-align:center;font-weight:700;color:'+tc+';background:#f0f2ff">'+(sd.absent?"—":sp+"%")+'</td>';
+          html+='<td style="padding:8px 10px;border-bottom:1px solid #f0f2ff;text-align:center;background:#f0f2ff"><span class="grade '+gradeCls(sg)+'">'+sg+'</span></td>';
+          html+='</tr>';
+        });
+        html+='</tbody></table></div>';
+      }
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+
+return html;
 }
 
 function setupStudentResultsView(){
@@ -3153,6 +3410,83 @@ function setupAnnualPage(){
 }
 
 // ── PRINCIPAL VIEW ────────────────────────────────────────────
+function exportSingleStudentAnnual(ar, myRow){
+  var subjects=Object.keys(myRow.subjects||{});
+  var rows=[];
+  var r0=new Array(6).fill(""); r0[0]="Oxbridge Secondary School\nGulshan e Usman Campus, Rahim Yar Khan"; rows.push(r0);
+  var r1=new Array(6).fill(""); r1[0]="ANNUAL RESULT — "+ar.testName+" — SESSION: "+ar.session; rows.push(r1);
+  var r2=new Array(6).fill(""); r2[0]="Name:"; r2[1]=myRow.name+(myRow.fatherName?" S/O "+myRow.fatherName:""); rows.push(r2);
+  var r3=new Array(6).fill(""); r3[0]="Roll No:"; r3[1]=myRow.rollNo; r3[3]="Class:"; r3[4]=ar.cls; rows.push(r3);
+  var r4=new Array(6).fill(""); r4[0]="Position:"; r4[1]=myRow.position; rows.push(r4);
+  rows.push(new Array(6).fill(""));
+  rows.push(["Sr#","SUBJECT","MARKS","TOTAL","%","GRADE"]);
+  subjects.forEach(function(s,i){
+    var sd=myRow.subjects[s]||{};
+    var sp=sd.total>0?Math.round((sd.marks/sd.total)*100):0;
+    var sg=sd.absent?"AB":calcGrade(sd.marks,sd.total);
+    rows.push([i+1,s.toUpperCase(),sd.absent?"AB":sd.marks,sd.total,sd.absent?"—":sp+"%",sg]);
+  });
+  rows.push([]);
+  rows.push(["","TOTAL",myRow.obtained,myRow.total,myRow.pct+"%",myRow.grade]);
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"]=[{wch:5},{wch:22},{wch:10},{wch:8},{wch:8},{wch:8}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Annual Result");
+  XLSX.writeFile(wb,"Annual_"+String(myRow.name).replace(/\s+/g,"_")+"_"+myRow.rollNo+".xlsx");
+  showToast("Annual result exported!");
+}
+
+function exportAnnualClass(cls){
+  var clsItems=annualResults.filter(function(ar){return ar.cls===cls;});
+  if(!clsItems.length){showToast("No results to export.");return;}
+  var ar=clsItems[0]; // export first exam for this class
+  exportAnnualToExcel(ar);
+}
+
+function exportAnnualToExcel(ar){
+  var subjects=ar.results.length>0?Object.keys(ar.results[0].subjects):[];
+  var rows=[];
+  // Header rows
+  var r0=new Array(subjects.length+7).fill("");
+  r0[0]="Oxbridge Secondary School\nGulshan e Usman Campus, Rahim Yar Khan";
+  rows.push(r0);
+  var r1=new Array(subjects.length+7).fill("");
+  r1[0]="ANNUAL RESULT — "+ar.testName+" — SESSION: "+ar.session;
+  rows.push(r1);
+  var r2=new Array(subjects.length+7).fill("");
+  r2[0]="Class:"; r2[1]=ar.cls;
+  rows.push(r2);
+  rows.push(new Array(subjects.length+7).fill(""));
+  // Column headers
+  var hdr=["Pos","Roll No","Student Name","Father Name"].concat(subjects).concat(["Obtained","Total","%","Grade"]);
+  rows.push(hdr);
+  // Max marks row
+  var maxRow=["","","",""].concat(subjects.map(function(s){
+    var first=ar.results[0];return first&&first.subjects[s]?first.subjects[s].total:"";
+  })).concat(["","",""]);
+  rows.push(maxRow);
+  // Student rows
+  ar.results.forEach(function(r){
+    var row=[r.position,r.rollNo,r.name,r.fatherName||""];
+    subjects.forEach(function(s){
+      var sd=r.subjects[s]||{};
+      row.push(sd.absent?"AB":sd.marks);
+    });
+    row.push(r.obtained,r.total,r.pct+"%",r.grade);
+    rows.push(row);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  var wscols=[{wch:5},{wch:8},{wch:28},{wch:22}];
+  subjects.forEach(function(){wscols.push({wch:12});});
+  wscols.push({wch:10},{wch:8},{wch:8},{wch:8});
+  ws["!cols"]=wscols;
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Annual Result");
+  var fname="Annual_"+ar.cls.replace(/[\s()]/g,"_")+"_"+ar.session.replace(/[-]/g,"")+".xlsx";
+  XLSX.writeFile(wb,fname);
+  showToast("Exported: "+fname);
+}
+
 function renderAnnualPrincipal(page){
   var html='';
 
@@ -3243,9 +3577,12 @@ function renderAnnualStudent(page){
     html+='<div style="background:linear-gradient(135deg,var(--pri),var(--pri2));padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
     html+='<div><div style="font-size:16px;font-weight:800;color:#fff">'+esc(ar.testName)+'</div>';
     html+='<div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:2px">Session: '+esc(ar.session)+' &bull; '+esc(ar.cls)+'</div></div>';
+    html+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
     html+='<div style="text-align:center;background:rgba(255,255,255,.2);border-radius:12px;padding:10px 18px">';
     html+='<div style="font-size:28px;font-weight:800;color:#fff">'+myRow.pct+'%</div>';
     html+='<span style="background:rgba(255,255,255,.25);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:800;color:#fff">'+myRow.grade+'</span>';
+    html+='</div>';
+    html+='<button class="btn btn-sm stu-annual-export-btn" data-arid="'+ar.id+'" data-roll="'+esc(u.rollNo)+'" style="background:rgba(255,255,255,.2);color:#fff;border:2px solid rgba(255,255,255,.4)">&#11015; Export</button>';
     html+='</div></div>';
     // Position + status bar
     html+='<div style="padding:10px 20px;background:'+statusBg+';border-bottom:2px solid var(--border);display:flex;gap:14px;flex-wrap:wrap;align-items:center">';
@@ -3282,6 +3619,18 @@ function renderAnnualStudent(page){
   });
   html+='</div>';
   page.innerHTML=html;
+  // Attach export handlers for student
+  document.querySelectorAll(".stu-annual-export-btn").forEach(function(btn){
+    btn.onclick=function(){
+      var arid=this.getAttribute("data-arid");
+      var roll=this.getAttribute("data-roll");
+      var ar=annualResults.find(function(x){return String(x.id)===String(arid);});
+      if(!ar)return;
+      var myRow=ar.results.find(function(r){return r.rollNo===roll;});
+      if(!myRow)return;
+      exportSingleStudentAnnual(ar,myRow);
+    };
+  });
 }
 
 // ── Upload form builder ───────────────────────────────────────
@@ -3319,7 +3668,7 @@ function buildAnnualResultsList(isPrincipal){
   Object.keys(clsGroups).sort().forEach(function(cls){
     var clsItems=clsGroups[cls].sort(function(a,b){return a.session.localeCompare(b.session);});
     var totalStu=clsItems.reduce(function(acc,ar){return acc+ar.results.length;},0);
-    html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);cursor:pointer" class="ar-cls-card" data-cls="'+esc(cls)+'">';
+    html+='<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)" class="ar-cls-card" data-cls="'+esc(cls)+'">';
     // Card header
     html+='<div style="background:linear-gradient(135deg,var(--pri),var(--pri2));padding:16px;color:#fff">';
     html+='<div style="font-size:22px;margin-bottom:6px">&#127941;</div>';
@@ -3387,6 +3736,10 @@ function attachAnnualHandlers(isPrincipal){
   // Class card — view all results for that class
   document.querySelectorAll(".ar-cls-view-btn").forEach(function(btn){
     btn.onclick=function(e){e.stopPropagation();openAnnualClassModal(this.getAttribute("data-cls"));};
+  });
+  // Class card — export
+  document.querySelectorAll(".ar-cls-export-btn").forEach(function(btn){
+    btn.onclick=function(e){e.stopPropagation();exportAnnualClass(this.getAttribute("data-cls"));};
   });
   document.querySelectorAll(".ar-cls-card").forEach(function(card){
     card.onclick=function(){openAnnualClassModal(this.getAttribute("data-cls"));};
